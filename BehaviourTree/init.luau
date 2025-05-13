@@ -1,0 +1,3 @@
+local BehaviourTree = {}
+
+return BehaviourTree

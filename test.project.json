@@ -1,0 +1,14 @@
+{
+  "name": "BehaviourTree",
+  "tree": {
+    "$className": "DataModel",
+    "$ignoreUnknownInstances": true,
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+
+      "BehaviourTree": {
+        "$path": "./BehaviourTree"
+      }
+    }
+  }
+}

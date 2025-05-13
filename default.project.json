@@ -1,0 +1,6 @@
+{
+  "name": "behaviour-tree",
+  "tree": {
+    "$path": "BehaviourTree"
+  }
+}
