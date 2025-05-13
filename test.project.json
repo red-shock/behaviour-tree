@@ -8,6 +8,10 @@
 
       "BehaviourTree": {
         "$path": "./BehaviourTree"
+      },
+      "Test": {
+        "$className": "Folder",
+        "$path": "./Test"
       }
     }
   }
