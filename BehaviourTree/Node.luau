@@ -1,4 +1,5 @@
-type Node = {
+local Enums = require(script.Parent.Enums)
+export type Node = {
     __index: Node,
     parent: Node | nil,
     name: string | nil,
@@ -14,6 +15,7 @@ function Node.new(name: string | nil)
     self.parent = nil
     self.name = name or "Node"
     self.children = {}
+    self.status = Enums.Status.IDLE
     return self
 end
 
