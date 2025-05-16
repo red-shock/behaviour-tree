@@ -10,6 +10,7 @@ function Tree.new(root : Node.Node | nil)
 end
 
 function Tree:addChild(child: Node.Node | { Node.Node })
+    print(#child)
     if #child == 1 then
         self:_addSingleNode(child)
     elseif #child > 1 then
@@ -24,16 +25,10 @@ function Tree:_addNodeList(nodeList: { Node.Node })
         error("Root is not set")
     end
     
-    for _, node in ipairs(nodeList) do
-       self:_addSingleNode(node) 
-    end
+    self.root:addChild(nodeList)
 end
 
 function Tree:_addSingleNode(node: Node.Node)
-    if not Node.isInstanceOf(node) then
-        error(`Node is not an instance of Node: ${node}`)
-    end
-
     if not self.root then
         self._setRoot(node)
     else

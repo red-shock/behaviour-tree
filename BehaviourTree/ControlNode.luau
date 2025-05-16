@@ -24,7 +24,17 @@ function ControlNode.new(name: string | nil, nodeType: Enums.NodeType)
     return self
 end
 
-function ControlNode:addChild(child: Node.Node)
+function ControlNode:addChild(child: Node.Node | { Node.Node })
+    if #child == 1 then
+        self:_addSingleNode(child)
+    elseif #child > 1 then
+        self:_addNodeList(child)
+    else
+        error("Child is not a valid Node or Node list")
+    end
+end
+
+function ControlNode:_addSingleNode(child: Node.Node)
     if self.nodeType == Enums.NodeType.DECORATOR and #self.children == 1 then
         error("Decorator node can only have one child, remove the existing child first")
     end
@@ -35,6 +45,12 @@ function ControlNode:addChild(child: Node.Node)
 
     child.parent = self
     table.insert(self.children, child)
+end
+
+function ControlNode:_addNodeList(nodeList: { Node.Node })
+    for _, node in ipairs(nodeList) do
+       self:_addSingleNode(node)
+    end
 end
 
 function ControlNode:removeChild(child: Node.Node)
@@ -63,6 +79,7 @@ end
 local function argIsInstanceOf(fn: any)
     return function(self, ...)
         local args = { ... }
+        print(args)
         if #args > 0 and Node.isInstanceOf(args[1]) then
             return fn(self, ...)
         else
@@ -71,7 +88,7 @@ local function argIsInstanceOf(fn: any)
     end
 end
 
-Node.addChild = argIsInstanceOf(Node.addChild)
+Node.addChild = argIsInstanceOf(Node._addSingleNode)
 Node.removeChild = argIsInstanceOf(Node.removeChild)
 
 return ControlNode
