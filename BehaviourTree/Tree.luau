@@ -3,13 +3,13 @@ local Node = require(script.Parent.Node)
 local Tree = {}
 Tree.__index = Tree
 
-function Tree.new(root : Node | nil)
+function Tree.new(root : Node.Node | nil)
     local self = setmetatable({}, Tree)
     self.root = root
     return self
 end
 
-function Tree:addChild(child: Node)
+function Tree:addChild(child: Node.Node | { Node.Node })
     if #child == 1 then
         self:_addSingleNode(child)
     elseif #child > 1 then
@@ -19,7 +19,7 @@ function Tree:addChild(child: Node)
     end
 end
 
-function Tree:_addNodeList(nodeList: { Node })
+function Tree:_addNodeList(nodeList: { Node.Node })
     if not self.root then
         error("Root is not set")
     end
@@ -29,7 +29,7 @@ function Tree:_addNodeList(nodeList: { Node })
     end
 end
 
-function Tree:_addSingleNode(node: Node)
+function Tree:_addSingleNode(node: Node.Node)
     if not Node.isInstanceOf(node) then
         error(`Node is not an instance of Node: ${node}`)
     end
@@ -53,11 +53,11 @@ Tree.__tostring = function(self)
         return "Tree is empty"
     end
     
-    print(self.root.name)
+    local str = "\n"..self.root.name
     local function recursivePrint(node, prefix, isLast)
         prefix = prefix or ""
         local connector = isLast and "└─ " or "├─ "
-        print(prefix .. connector .. node.name)
+        str = str.. "\n" .. prefix .. connector .. node.name
     
         local children = node.children or {}
         for i, child in ipairs(children) do
@@ -68,6 +68,7 @@ Tree.__tostring = function(self)
     for _, child in ipairs(self.root.children) do
         recursivePrint(child, "".."  ")
     end
+    return str
 end
 
 return Tree
