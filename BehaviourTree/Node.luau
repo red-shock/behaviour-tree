@@ -13,6 +13,7 @@ Node.__index = Node
 function Node.new(name: string | nil)
     local self = setmetatable({}, Node)
     self.parent = nil
+    self.tree = nil
     self.name = name or "Node"
     self.status = Enums.Status.IDLE
     return self
@@ -24,6 +25,26 @@ function Node:remove()
     end
     
     self.parent = nil
+    self.tree = nil
+end
+
+function Node:isLeaf()
+    return #self.children == 0
+end
+
+function Node:isRoot()
+    return self.parent == nil
+end
+
+function Node.findTree(node: Node)
+    local current = node
+    while current do
+        if current.__class == "Tree" then
+            return current
+        end
+        current = current.parent
+    end
+    return nil
 end
 
 function Node.isInstanceOf(node: any)
@@ -32,7 +53,7 @@ function Node.isInstanceOf(node: any)
 		if mt == Node then
 			return true
 		end
-		mt = getmetatable(mt)  -- move up the inheritance chain
+		mt = getmetatable(mt)
 	end
 	return false
 end

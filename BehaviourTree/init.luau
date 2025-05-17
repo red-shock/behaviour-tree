@@ -2,7 +2,7 @@ local Tree = require(script.Tree)
 local BehaviourTree = {}
 
 BehaviourTree.new = function()
-    local root = BehaviourTree.ControlNode.new("Root", BehaviourTree.Enums.NodeType.SEQUENCE)
+    local root = BehaviourTree.ControlNode.new("Root", BehaviourTree.Enums.NodeType.FALLBACK)
     return Tree.new(root)
 end
 

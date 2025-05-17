@@ -1,16 +1,25 @@
 local Node = require(script.Parent.Node)
 
+export type Tree = {
+    root: Node.Node | nil,
+    currentNode: Node.Node | nil,
+    paused: boolean,
+}
+
 local Tree = {}
 Tree.__index = Tree
+Tree.__class = "Tree"
 
 function Tree.new(root : Node.Node | nil)
     local self = setmetatable({}, Tree)
     self.root = root
+    self.currentNode = root
+    self.paused = false
+    self.Paused = Instance.new("BindableEvent") :: BindableEvent
     return self
 end
 
 function Tree:addChild(child: Node.Node | { Node.Node })
-    print(#child)
     if #child == 1 then
         self:_addSingleNode(child)
     elseif #child > 1 then
@@ -25,10 +34,22 @@ function Tree:_addNodeList(nodeList: { Node.Node })
         error("Root is not set")
     end
     
-    self.root:addChild(nodeList)
+    for _, child in ipairs(nodeList) do
+        self:_addSingleNode(child)
+    end
 end
 
 function Tree:_addSingleNode(node: Node.Node)
+    local function setTree(child: Node.Node)
+        if child.children then
+            for _, n in ipairs(child.children) do
+                setTree(n)
+            end
+        end
+        child.tree = self
+    end
+
+    setTree(node)
     if not self.root then
         self._setRoot(node)
     else
@@ -41,6 +62,21 @@ function Tree:_setRoot(node)
         error(`Root cannot be set to ${node}`)
     end
     self.root = node
+end
+
+function Tree:run()
+    if self.paused then return end
+    
+    if not self.root then
+        error("Tree has no root node")
+    end
+
+    self.root:run()
+end
+
+function Tree:pause()
+    self.paused = true
+    self.Paused:Fire()
 end
 
 Tree.__tostring = function(self)
