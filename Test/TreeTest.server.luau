@@ -9,26 +9,26 @@ local BT = require(ServerScriptService.BehaviourTree)
 
 local tree = BT.new()
 
-local isDeadSequence = BT.ControlNode.new("IsDeadSequence", BT.Enums.NodeType.SEQUENCE)
-local isDeadCondition = BT.ExecutionNode.new("isDead?", BT.Enums.NodeType.CONDITION, function()
+local isDeadSequence = BT.SequenceNode.new("IsDeadSequence")
+local isDeadCondition = BT.ConditionNode.new("isDead?", function()
     return Humanoid.Health <= 0
 end)
-local dieAction = BT.ExecutionNode.new("Die", BT.Enums.NodeType.ACTION, function()
+local dieAction = BT.ActionNode.new("Die", function()
     Humanoid.parent:Destroy()
     print(`#{Rig.Name} Died`)
 end, true)
 
-local isWalkSequence = BT.ControlNode.new("IsWalkSequence", BT.Enums.NodeType.SEQUENCE)
-local isWalkCondition = BT.ExecutionNode.new("isWalking?", BT.Enums.NodeType.CONDITION, function()
+local isWalkSequence = BT.SequenceNode.new("IsWalkSequence")
+local isWalkCondition = BT.ConditionNode.new("isWalking?", function()
     return true
 end)
-local walkAction = BT.ExecutionNode.new("Walk", BT.Enums.NodeType.ACTION, function()
+local walkAction = BT.ActionNode.new("Walk", function()
     print(`#{Rig.Name} is walking`)
     task.wait(5)
     print(`#{Rig.Name} has walked`)
 end)
 
-local idleAction = BT.ExecutionNode.new("Idle", BT.Enums.NodeType.ACTION, function()
+local idleAction = BT.ActionNode.new("Idle", function()
     print(`#{Rig.Name} is idling`)
 end)
 

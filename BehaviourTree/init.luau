@@ -1,4 +1,7 @@
 local Tree = require(script.Tree)
+local ExecutionNode = require(script.ExecutionNode)
+local ControlNode = require(script.ControlNode)
+
 local BehaviourTree = {}
 
 BehaviourTree.new = function()
@@ -6,8 +9,26 @@ BehaviourTree.new = function()
     return Tree.new(root)
 end
 
-BehaviourTree.ExecutionNode = require(script.ExecutionNode)
-BehaviourTree.ControlNode = require(script.ControlNode)
+BehaviourTree.ExecutionNode = ExecutionNode
+BehaviourTree.ControlNode = ControlNode
 BehaviourTree.Enums = require(script.Enums)
+
+BehaviourTree.ActionNode = {}
+BehaviourTree.ConditionNode = {}
+BehaviourTree.SequenceNode = {}
+BehaviourTree.FallbackNode = {}
+
+BehaviourTree.ActionNode.new = function(name: string | nil, fn: ExecutionNode.ActionFunction, isTerminator: boolean)
+    return BehaviourTree.ExecutionNode.new(name, BehaviourTree.Enums.NodeType.ACTION, fn, isTerminator)
+end
+BehaviourTree.ConditionNode.new = function(name: string | nil, fn: ExecutionNode.ConditionFunction, isTerminator: boolean)
+    return BehaviourTree.ExecutionNode.new(name, BehaviourTree.Enums.NodeType.CONDITION, fn, isTerminator)
+end
+BehaviourTree.SequenceNode.new = function(name: string | nil)
+    return BehaviourTree.ControlNode.new(name, BehaviourTree.Enums.NodeType.SEQUENCE)
+end
+BehaviourTree.FallbackNode.new = function(name: string | nil)
+    return BehaviourTree.ControlNode.new(name, BehaviourTree.Enums.NodeType.FALLBACK)
+end
 
 return BehaviourTree

@@ -40,30 +40,27 @@ function ExecutionNode:run()
     end
 
     if self.nodeType == Enums.NodeType.ACTION then
-        self:_runAction()
-        elseif self.nodeType == Enums.NodeType.CONDITION then
+        local connectionId = tick()
+        local thread = task.spawn(self._runAction, self, connectionId)
+        self._functionConnections[connectionId] = thread
+    elseif self.nodeType == Enums.NodeType.CONDITION then
         self.status = Enums.Status.RUNNING
-        local result = self.fn()
-        self.status = result and Enums.Status.SUCCESS or Enums.Status.FAILURE
+        self.status = self.fn() and Enums.Status.SUCCESS or Enums.Status.FAILURE
     end
     return self.status
 end
 
-function ExecutionNode:_runAction()
-    local connectionId = tick()
-    local thread = task.spawn(function()
-        self.status = Enums.Status.RUNNING
-        self.fn()
-        self.status = Enums.Status.SUCCESS
-        if self.isTerminator then
-            if self.tree == nil then
-                error("Tree is not set, cannot terminate")
-            end
-            self.tree:pause()
+function ExecutionNode:_runAction(connectionId: number)
+    self.status = Enums.Status.RUNNING
+    self.fn()
+    self.status = Enums.Status.SUCCESS
+    if self.isTerminator then
+        if self.tree == nil then
+            error("Tree is not set, cannot terminate")
         end
-        self._functionConnections[connectionId] = nil
-    end)
-    self._functionConnections[connectionId] = thread
+        self.tree:pause()
+    end
+    self._functionConnections[connectionId] = nil
 end
 
 function ExecutionNode:_cancelThreads()
