@@ -29,6 +29,7 @@ function ExecutionNode.new(name: string | nil, nodeType: Enums.NodeType, fn: Con
     self.fn = fn
     self.status = Enums.Status.IDLE
     self.isTerminator = isTerminator or false
+    self._functionConnections = {}
     self.__class = "ExecutionNode"
     return self
 end
@@ -39,6 +40,18 @@ function ExecutionNode:run()
     end
 
     if self.nodeType == Enums.NodeType.ACTION then
+        self:_runAction()
+        elseif self.nodeType == Enums.NodeType.CONDITION then
+        self.status = Enums.Status.RUNNING
+        local result = self.fn()
+        self.status = result and Enums.Status.SUCCESS or Enums.Status.FAILURE
+    end
+    return self.status
+end
+
+function ExecutionNode:_runAction()
+    local connectionId = tick()
+    local thread = task.spawn(function()
         self.status = Enums.Status.RUNNING
         self.fn()
         self.status = Enums.Status.SUCCESS
@@ -48,12 +61,16 @@ function ExecutionNode:run()
             end
             self.tree:pause()
         end
-    elseif self.nodeType == Enums.NodeType.CONDITION then
-        self.status = Enums.Status.RUNNING
-        local result = self.fn()
-        self.status = result and Enums.Status.SUCCESS or Enums.Status.FAILURE
+        self._functionConnections[connectionId] = nil
+    end)
+    self._functionConnections[connectionId] = thread
+end
+
+function ExecutionNode:_cancelThreads()
+    for connectionId, _ in pairs(self._functionConnections) do
+        task.cancel(self._functionConnections[connectionId])
+        self._functionConnections[connectionId] = nil
     end
-    return self.status
 end
 
 function ExecutionNode.isInstanceOf(node: any)

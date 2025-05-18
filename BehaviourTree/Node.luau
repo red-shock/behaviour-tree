@@ -29,7 +29,7 @@ function Node:remove()
 end
 
 function Node:isLeaf()
-    return #self.children == 0
+    return not self.children
 end
 
 function Node:isRoot()

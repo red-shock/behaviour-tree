@@ -79,6 +79,24 @@ function Tree:pause()
     self.Paused:Fire()
 end
 
+function Tree:cancelActiveExecutionActions()
+    if not self.root then
+        error("Tree has no root node")
+    end
+
+    local function cancelActions(node: Node.Node)
+        if node:isLeaf() then
+            node:_cancelThreads()
+        else
+            for _, child in ipairs(node.children) do
+                cancelActions(child)
+            end
+        end
+    end
+
+    cancelActions(self.root)
+end
+
 Tree.__tostring = function(self)
     if not self.root then
         return "Tree is empty"
