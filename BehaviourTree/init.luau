@@ -4,9 +4,9 @@ local ControlNode = require(script.ControlNode)
 
 local BehaviourTree = {}
 
-BehaviourTree.new = function()
-    local root = BehaviourTree.ControlNode.new("Root", BehaviourTree.Enums.NodeType.FALLBACK)
-    return Tree.new(root)
+BehaviourTree.new = function(root: ControlNode.ControlNode | nil)
+    local node = root or BehaviourTree.ControlNode.new("Root", BehaviourTree.Enums.NodeType.FALLBACK)
+    return Tree.new(node)
 end
 
 BehaviourTree.ExecutionNode = ExecutionNode

@@ -1,6 +1,15 @@
 local Node = require(script.Parent.Node)
 local Enums = require(script.Parent.Enums)
 
+export type ControlNode = {
+    nodeType: Enums.NodeType,
+    children: { Node.Node },
+    childrenStatus: Enums.Status,
+    addChild: (self: ControlNode, child: Node.Node | { Node.Node }) -> nil,
+    removeChild: (self: ControlNode, child: Node.Node) -> nil,
+    run: (self: ControlNode) -> Enums.Status,
+}
+
 local ControlNode = {}
 ControlNode.__index = ControlNode
 ControlNode.__class = "ControlNode"
