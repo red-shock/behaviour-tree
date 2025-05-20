@@ -52,13 +52,17 @@ end
 
 function ExecutionNode:_runAction(connectionId: number)
     self.status = Enums.Status.RUNNING
-    self.fn()
-    self.status = Enums.Status.SUCCESS
-    if self.isTerminator then
-        if self.tree == nil then
-            error("Tree is not set, cannot terminate")
+    local success, _ = pcall(self.fn)
+    if not success then
+        self.status = Enums.Status.FAILURE
+    else
+        self.status = Enums.Status.SUCCESS
+        if self.isTerminator then
+            if self.tree == nil then
+                error("Tree is not set, cannot terminate")
+            end
+            self.tree:pause()
         end
-        self.tree:pause()
     end
     self._functionConnections[connectionId] = nil
 end

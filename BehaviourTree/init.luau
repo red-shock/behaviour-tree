@@ -17,6 +17,7 @@ BehaviourTree.ActionNode = {}
 BehaviourTree.ConditionNode = {}
 BehaviourTree.SequenceNode = {}
 BehaviourTree.FallbackNode = {}
+BehaviourTree.ParallelNode = {}
 
 BehaviourTree.ActionNode.new = function(name: string | nil, fn: ExecutionNode.ActionFunction, isTerminator: boolean)
     return BehaviourTree.ExecutionNode.new(name, BehaviourTree.Enums.NodeType.ACTION, fn, isTerminator)
@@ -29,6 +30,9 @@ BehaviourTree.SequenceNode.new = function(name: string | nil)
 end
 BehaviourTree.FallbackNode.new = function(name: string | nil)
     return BehaviourTree.ControlNode.new(name, BehaviourTree.Enums.NodeType.FALLBACK)
+end
+BehaviourTree.ParallelNode.new = function(name: string | nil)
+    return BehaviourTree.ControlNode.new(name, BehaviourTree.Enums.NodeType.PARALLEL)
 end
 
 return BehaviourTree
