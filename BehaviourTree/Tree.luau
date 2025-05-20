@@ -102,11 +102,11 @@ Tree.__tostring = function(self)
         return "Tree is empty"
     end
     
-    local str = "\n"..self.root.name
+    local str = "\n"..self.root.name.." : "..self.root.nodeType
     local function recursivePrint(node, prefix, isLast)
         prefix = prefix or ""
         local connector = isLast and "└─ " or "├─ "
-        str = str.. "\n" .. prefix .. connector .. node.name
+        str = str.. "\n" .. prefix .. connector .. node.name .. " : "..node.nodeType
     
         local children = node.children or {}
         for i, child in ipairs(children) do
