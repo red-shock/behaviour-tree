@@ -1,6 +1,16 @@
 local Node = require(script.Parent.Node)
 local Enums = require(script.Parent.Enums)
 
+export type ExecutionNode = {
+    name: string | nil,
+    nodeType: Enums.NodeType,
+    fn: ConditionFunction | ActionFunction,
+    status: Enums.Status,
+    isTerminator: boolean,
+    _functionConnections: { [number]: thread },
+    tree: any, -- Reference to the tree this node belongs to
+}
+
 export type ConditionFunction = () -> boolean
 export type ActionFunction = () -> nil
 
@@ -19,6 +29,7 @@ function ExecutionNode.new(name: string | nil, nodeType: Enums.NodeType, fn: Con
     end
     
     if nodeType == Enums.NodeType.CONDITION and isTerminator then
+        isTerminator = false
         warn("Condition node cannot be a terminator")
     end
     
@@ -29,48 +40,55 @@ function ExecutionNode.new(name: string | nil, nodeType: Enums.NodeType, fn: Con
     self.fn = fn
     self.status = Enums.Status.IDLE
     self.isTerminator = isTerminator or false
-    self._functionConnections = {}
+    self._coroutine = nil
     self.__class = "ExecutionNode"
     return self
 end
 
 function ExecutionNode:run()
-    if self.status == Enums.Status.RUNNING then
-        return self.status
-    end
+    if not self._coroutine then
+        self._coroutine = {
+            success = true,
+            result = nil,
+        }
+        
+        self._coroutine.fn = coroutine.create(function()
+            local success, result = pcall(self.fn)
+            self._coroutine.success = success
+            self._coroutine.result = result
+        end)
 
-    if self.nodeType == Enums.NodeType.ACTION then
-        local connectionId = tick()
-        local thread = task.spawn(self._runAction, self, connectionId)
-        self._functionConnections[connectionId] = thread
-    elseif self.nodeType == Enums.NodeType.CONDITION then
+        coroutine.resume(self._coroutine.fn)
         self.status = Enums.Status.RUNNING
-        self.status = self.fn() and Enums.Status.SUCCESS or Enums.Status.FAILURE
+    else
+        if coroutine.status(self._coroutine.fn) == "dead" then
+            if not self._coroutine.success then
+                self.status = Enums.Status.FAILURE
+            else
+                if self.nodeType == Enums.NodeType.ACTION then
+                    self.status = Enums.Status.SUCCESS
+                    if self.isTerminator then
+                        if not self.tree then
+                            error("Tree is not set, cannot pause")
+                        end
+                        self.tree:pause()
+                    end
+                elseif self.nodeType == Enums.NodeType.CONDITION then
+                    self.status = self._coroutine.result and Enums.Status.SUCCESS or Enums.Status.FAILURE
+                end
+            end
+            self._coroutine = nil
+        end
     end
     return self.status
 end
 
-function ExecutionNode:_runAction(connectionId: number)
-    self.status = Enums.Status.RUNNING
-    local success, _ = pcall(self.fn)
-    if not success then
-        self.status = Enums.Status.FAILURE
-    else
-        self.status = Enums.Status.SUCCESS
-        if self.isTerminator then
-            if self.tree == nil then
-                error("Tree is not set, cannot terminate")
-            end
-            self.tree:pause()
+function ExecutionNode:_cancelThread()
+    if self._coroutine then
+        if self._coroutine.fn then
+            coroutine.close(self._coroutine.fn)
         end
-    end
-    self._functionConnections[connectionId] = nil
-end
-
-function ExecutionNode:_cancelThreads()
-    for connectionId, _ in pairs(self._functionConnections) do
-        task.cancel(self._functionConnections[connectionId])
-        self._functionConnections[connectionId] = nil
+        self._coroutine = nil
     end
 end
 

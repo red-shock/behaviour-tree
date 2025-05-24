@@ -1,3 +1,4 @@
+local HttpService = game:GetService("HttpService")
 local Node = require(script.Parent.Node)
 
 export type Tree = {
@@ -61,7 +62,7 @@ function Tree:_setRoot(node)
     if self.root or not Node.isInstanceOf(self.root) then
         error(`Root cannot be set to ${node}`)
     end
-    self.root = node
+    self.root = node:clone()
 end
 
 function Tree:run()
@@ -76,6 +77,16 @@ end
 
 function Tree:pause()
     self.paused = true
+    local function pauseNode(node: Node.Node)
+        for _, child in ipairs(node.children) do
+            if not child:isLeaf() then
+                pauseNode(child)
+            else
+                child:pause()
+            end
+        end
+    end
+    pauseNode(self.root)
     self.Paused:Fire()
 end
 
@@ -85,7 +96,7 @@ function Tree:cancelActiveExecutionActions()
     end
 
     local function cancelActions(node: Node.Node)
-        if node:isLeaf() then
+        if type(node._cancelThreads) == "function" then
             node:_cancelThreads()
         else
             for _, child in ipairs(node.children) do

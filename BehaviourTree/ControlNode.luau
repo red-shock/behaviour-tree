@@ -31,7 +31,6 @@ function ControlNode.new(name: string | nil, nodeType: Enums.NodeType)
 
     self.nodeType = nodeType
     self.children = {}
-    self.childrenStatus = Enums.Status.SUCCESS
     self.minSuccess = nil
     self.maxFailure = nil
     self._runningThreads = {}
@@ -46,6 +45,9 @@ function ControlNode:addChild(child: Node.Node | { Node.Node })
     if #child == 0 then
         self:_addSingleNode(child)
     elseif #child > 1 then
+        if self.nodeType == Enums.NodeType.DECORATOR then
+            error("Decorator node can only have one child")
+        end
         self:_addNodeList(child)
     else
         error("Child is not a valid Node or Node list")
@@ -61,8 +63,9 @@ function ControlNode:_addSingleNode(child: Node.Node)
         error("Cannot add self as child")
     end
 
-    child.parent = self
-    table.insert(self.children, child)
+    local newChild = child:clone()
+    newChild.parent = self
+    table.insert(self.children, newChild)
 end
 
 function ControlNode:_addNodeList(nodeList: { Node.Node })
@@ -95,118 +98,117 @@ function ControlNode:remove()
 end
 
 function ControlNode:run()
+    if self.status ~= Enums.Status.RUNNING then
+        print("-------------------------")
+    end
+
     if self.nodeType == Enums.NodeType.SEQUENCE then
         return self:_runSequence()
     elseif self.nodeType == Enums.NodeType.FALLBACK then
         return self:_runFallback()
     elseif self.nodeType == Enums.NodeType.PARALLEL then
         return self:_runParallel()
-    elseif self.nodeType == Enums.NodeType.DECORATOR then
-        return self:_runDecorator()
     end
 end
 
 function ControlNode:_runSequence()
     for _, child in ipairs(self.children) do
-        local status = child:run()
+        self:_runChild(child)
 
-        if status == Enums.Status.RUNNING then
-            self.childrenStatus = Enums.Status.RUNNING
-            return self.childrenStatus
+        if child.status == Enums.Status.RUNNING then
+            self.status = Enums.Status.RUNNING
+            return self.status
         end
 
-        if status == Enums.Status.FAILURE then
-            self.childrenStatus = Enums.Status.FAILURE
-            return self.childrenStatus
+        if child.status == Enums.Status.FAILURE then
+            self.status = Enums.Status.FAILURE
+            self:_reset()
+            return self.status
         end
     end
-    self.childrenStatus = Enums.Status.SUCCESS
-    return self.childrenStatus
+    self.status = Enums.Status.SUCCESS
+    self:_reset()
+    return self.status
 end
 
 function ControlNode:_runFallback()
     for _, child in ipairs(self.children) do
-        local status = child:run()
+        self:_runChild(child)
 
-        if status == Enums.Status.RUNNING then
-            self.childrenStatus = Enums.Status.RUNNING
-            return self.childrenStatus
+        if child.status == Enums.Status.RUNNING then
+            self.status = Enums.Status.RUNNING
+            return self.status
         end
 
-        if status == Enums.Status.SUCCESS then
-            self.childrenStatus = Enums.Status.SUCCESS
-            return self.childrenStatus
+        if child.status == Enums.Status.SUCCESS then
+            self.status = Enums.Status.SUCCESS
+            self._reset()
+            return self.status
         end
     end
-    self.childrenStatus = Enums.Status.FAILURE
-    return self.childrenStatus
+    self.status = Enums.Status.FAILURE
+    self:_reset()
+    return self.status
 end
 
 function ControlNode:_reset()
     for node, status in pairs(self._statusTable) do
         if status == Enums.Status.RUNNING then
-            node:_cancelThreads()
+            node:_cancelThread()
         end
     end
     self._statusTable = {}
     self._successCount = 0
     self._failureCount = 0
-    self.childrenStatus = Enums.Status.IDLE
+    self.status = Enums.Status.IDLE
 end
 
 function ControlNode:_validateParallel()
     local minSuccess = self.minSuccess or #self.children
     local maxFailure = self.maxFailure or 1
     if self._successCount >= minSuccess then
-        self.childrenStatus = Enums.Status.SUCCESS
+        print("success")
+        self.status = Enums.Status.SUCCESS
         self:_reset()
-        return self.childrenStatus
+        return self.status
     elseif self._failureCount >= maxFailure then
+        print("failure")
+        self.status = Enums.Status.FAILURE
         self:_reset()
-        return self.childrenStatus
+        return self.status
     end
 end
 
 function ControlNode:_runParallel()
     -- if we do not have a running node
-    if self.childrenStatus ~= Enums.Status.RUNNING then
-        self.childrenStatus = Enums.Status.RUNNING
-        for _, child in ipairs(self.children) do
-            task.spawn(child.run, child)
-            self._statusTable[child] = child.status
+    for _, child in ipairs(self.children) do
+        self:_runChild(child)
+
+        if child.status == Enums.Status.RUNNING then
+            self.status = Enums.Status.RUNNING
+            continue
         end
-    else
-        for _, child in pairs(self.children) do
-            if child.status == Enums.Status.SUCCESS then
-                self._statusTable[child] = Enums.Status.SUCCESS
-                self._successCount += 1
-                self:_validateParallel()
-            elseif child.status == Enums.Status.FAILURE then
-                self._statusTable[child] = Enums.Status.FAILURE
-                self._failureCount += 1
-                self:_validateParallel()
-            end
+
+        if child.status == Enums.Status.SUCCESS and self._statusTable[child] == Enums.Status.RUNNING then
+            self._statusTable[child] = Enums.Status.SUCCESS
+            self._successCount += 1
+            self:_validateParallel()
+        elseif child.status == Enums.Status.FAILURE and self._statusTable[child] == Enums.Status.RUNNING then
+            self._statusTable[child] = Enums.Status.FAILURE
+            self._failureCount += 1
+            self:_validateParallel()
         end
     end
-    return self.childrenStatus
+    return self.status
 end
 
---[[
-
-function()
-                self._statusTable[child] = Enums.Status.RUNNING
-                local status = child:run()
-                self._statusTable[child] = status
-
-                if status == Enums.Status.SUCCESS then
-                    self._successCount += 1
-                    self:_validateParallel()
-                elseif status == Enums.Status.FAILURE then
-                    self._failureCount += 1
-                    print("failed: ", child.name)
-                    self:_validateParallel()
-                end
-            end]]
+function ControlNode:_runChild(child: Node.Node)
+    if not self._statusTable[child] then
+        self._statusTable[child] = child:run()
+    elseif child.status == Enums.Status.RUNNING then
+        child:run()
+    end
+end
 
 function ControlNode.isInstanceOf(node: any)
     return Node.isInstanceOf(node) and ControlNode.__class == node.__class

@@ -36,6 +36,14 @@ function Node:isRoot()
     return self.parent == nil
 end
 
+function Node:pause()
+    self.status = Enums.Status.IDLE
+end
+
+function Node:clone()
+    return self --[[ Clone logic can be implemented here ]]
+end
+
 function Node.findTree(node: Node)
     local current = node
     while current do
