@@ -99,7 +99,7 @@ end
 
 function ControlNode:run()
     if self.status ~= Enums.Status.RUNNING then
-        print("-------------------------")
+        self.tree:debugPrint("TICK BEGIN")
     end
 
     if self.nodeType == Enums.NodeType.SEQUENCE then
@@ -142,7 +142,7 @@ function ControlNode:_runFallback()
 
         if child.status == Enums.Status.SUCCESS then
             self.status = Enums.Status.SUCCESS
-            self._reset()
+            self:_reset()
             return self.status
         end
     end
@@ -167,14 +167,12 @@ function ControlNode:_validateParallel()
     local minSuccess = self.minSuccess or #self.children
     local maxFailure = self.maxFailure or 1
     if self._successCount >= minSuccess then
-        print("success")
-        self.status = Enums.Status.SUCCESS
         self:_reset()
+        self.status = Enums.Status.SUCCESS
         return self.status
     elseif self._failureCount >= maxFailure then
-        print("failure")
-        self.status = Enums.Status.FAILURE
         self:_reset()
+        self.status = Enums.Status.FAILURE
         return self.status
     end
 end
@@ -193,10 +191,16 @@ function ControlNode:_runParallel()
             self._statusTable[child] = Enums.Status.SUCCESS
             self._successCount += 1
             self:_validateParallel()
+            if self.status == Enums.Status.SUCCESS then
+                return self.status
+            end
         elseif child.status == Enums.Status.FAILURE and self._statusTable[child] == Enums.Status.RUNNING then
             self._statusTable[child] = Enums.Status.FAILURE
             self._failureCount += 1
             self:_validateParallel()
+            if self.status == Enums.Status.FAILURE then
+                return self.status
+            end
         end
     end
     return self.status

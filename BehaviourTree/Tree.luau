@@ -1,4 +1,5 @@
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local Node = require(script.Parent.Node)
 
 export type Tree = {
@@ -11,12 +12,13 @@ local Tree = {}
 Tree.__index = Tree
 Tree.__class = "Tree"
 
-function Tree.new(root : Node.Node | nil)
+function Tree.new(root : Node.Node)
     local self = setmetatable({}, Tree)
-    self.root = root
+    self:_setRoot(root)
     self.currentNode = root
     self.paused = false
     self.Paused = Instance.new("BindableEvent") :: BindableEvent
+    self.uuid = HttpService:GenerateGUID(false)
     return self
 end
 
@@ -59,10 +61,11 @@ function Tree:_addSingleNode(node: Node.Node)
 end
 
 function Tree:_setRoot(node)
-    if self.root or not Node.isInstanceOf(self.root) then
+    if self.root or not Node.isInstanceOf(node) then
         error(`Root cannot be set to ${node}`)
     end
     self.root = node:clone()
+    self.root.tree = self
 end
 
 function Tree:run()
@@ -106,6 +109,12 @@ function Tree:cancelActiveExecutionActions()
     end
 
     cancelActions(self.root)
+end
+
+function Tree:debugPrint(str: string)
+    if RunService:IsStudio() then
+        print(`[BehaviourTree:{self.uuid}]: {str}`)
+    end
 end
 
 Tree.__tostring = function(self)
