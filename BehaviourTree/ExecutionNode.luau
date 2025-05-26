@@ -62,6 +62,7 @@ function ExecutionNode:run()
         self.status = Enums.Status.RUNNING
     else
         if coroutine.status(self._coroutine.fn) == "dead" then
+            self.tree:debugPrint(`{self.name} coroutine is dead, resetting. Success: {self._coroutine.success}, Result: {self._coroutine.result}`, 2)
             if not self._coroutine.success then
                 self.status = Enums.Status.FAILURE
             else

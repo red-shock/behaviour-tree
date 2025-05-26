@@ -7,7 +7,6 @@ export type Node = {
 }
 
 local Node = {}
-
 Node.__index = Node
 
 function Node.new(name: string | nil)
@@ -41,7 +40,27 @@ function Node:pause()
 end
 
 function Node:clone()
-    return self --[[ Clone logic can be implemented here ]]
+    local function deepCopy(orig, copies)
+        copies = copies or {}
+        local orig_type = type(orig)
+        local copy
+        if orig_type == 'table' then
+            if copies[orig] then
+                copy = copies[orig]
+            else
+                copy = {}
+                copies[orig] = copy
+                for orig_key, orig_value in next, orig, nil do
+                    copy[deepCopy(orig_key, copies)] = deepCopy(orig_value, copies)
+                end
+                setmetatable(copy, getmetatable(orig))
+            end
+        else -- number, string, boolean, etc
+            copy = orig
+        end
+        return copy
+    end
+    return deepCopy(self)
 end
 
 function Node.findTree(node: Node)
@@ -58,7 +77,9 @@ end
 function Node.isInstanceOf(node: any)
     local mt = getmetatable(node)
 	while mt do
-		if mt == Node then
+        print(mt)
+        print(Node)
+		if rawequal(mt, Node) then
 			return true
 		end
 		mt = getmetatable(mt)

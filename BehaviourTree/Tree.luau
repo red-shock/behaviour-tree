@@ -1,6 +1,7 @@
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Node = require(script.Parent.Node)
+local Enums = require(script.Parent.Enums)
 
 export type Tree = {
     root: Node.Node | nil,
@@ -14,11 +15,12 @@ Tree.__class = "Tree"
 
 function Tree.new(root : Node.Node)
     local self = setmetatable({}, Tree)
-    self:_setRoot(root)
     self.currentNode = root
+    self.uuid = HttpService:GenerateGUID(false)
     self.paused = false
     self.Paused = Instance.new("BindableEvent") :: BindableEvent
-    self.uuid = HttpService:GenerateGUID(false)
+    self.debugLevel = 0
+    self:_setRoot(root)
     return self
 end
 
@@ -65,6 +67,7 @@ function Tree:_setRoot(node)
         error(`Root cannot be set to ${node}`)
     end
     self.root = node:clone()
+    self.root.name = self.uuid
     self.root.tree = self
 end
 
@@ -75,6 +78,9 @@ function Tree:run()
         error("Tree has no root node")
     end
 
+    if self.root.status ~= Enums.Status.RUNNING and not self.paused then
+        self:debugPrint("TICK BEGIN")
+    end
     self.root:run()
 end
 
@@ -99,8 +105,8 @@ function Tree:cancelActiveExecutionActions()
     end
 
     local function cancelActions(node: Node.Node)
-        if type(node._cancelThreads) == "function" then
-            node:_cancelThreads()
+        if type(node._cancelThread) == "function" then
+            node:_cancelThread()
         else
             for _, child in ipairs(node.children) do
                 cancelActions(child)
@@ -111,7 +117,9 @@ function Tree:cancelActiveExecutionActions()
     cancelActions(self.root)
 end
 
-function Tree:debugPrint(str: string)
+function Tree:debugPrint(str: string, debugLevel: number?)
+    debugLevel = debugLevel or 1
+    if self.debugLevel < debugLevel then return end
     if RunService:IsStudio() then
         print(`[BehaviourTree:{self.uuid}]: {str}`)
     end

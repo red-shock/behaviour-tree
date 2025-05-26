@@ -26,8 +26,7 @@ function ControlNode.new(name: string | nil, nodeType: Enums.NodeType)
         error("Invalid node type")
     end
     
-    local self = Node.new(name)
-    setmetatable(self, ControlNode)
+    local self = setmetatable(Node.new(name), ControlNode)
 
     self.nodeType = nodeType
     self.children = {}
@@ -98,10 +97,6 @@ function ControlNode:remove()
 end
 
 function ControlNode:run()
-    if self.status ~= Enums.Status.RUNNING then
-        self.tree:debugPrint("TICK BEGIN")
-    end
-
     if self.nodeType == Enums.NodeType.SEQUENCE then
         return self:_runSequence()
     elseif self.nodeType == Enums.NodeType.FALLBACK then
@@ -121,13 +116,13 @@ function ControlNode:_runSequence()
         end
 
         if child.status == Enums.Status.FAILURE then
-            self.status = Enums.Status.FAILURE
             self:_reset()
+            self.status = Enums.Status.FAILURE
             return self.status
         end
     end
-    self.status = Enums.Status.SUCCESS
     self:_reset()
+    self.status = Enums.Status.SUCCESS
     return self.status
 end
 
@@ -141,20 +136,23 @@ function ControlNode:_runFallback()
         end
 
         if child.status == Enums.Status.SUCCESS then
-            self.status = Enums.Status.SUCCESS
             self:_reset()
+            self.status = Enums.Status.SUCCESS
             return self.status
         end
     end
-    self.status = Enums.Status.FAILURE
     self:_reset()
+    self.status = Enums.Status.FAILURE
     return self.status
 end
 
 function ControlNode:_reset()
     for node, status in pairs(self._statusTable) do
         if status == Enums.Status.RUNNING then
-            node:_cancelThread()
+            if type(node._cancelThread) == "function" then
+                self.tree:debugPrint(`{node.name} is running, cancelling thread`, 2)
+                node:_cancelThread()
+            end
         end
     end
     self._statusTable = {}
