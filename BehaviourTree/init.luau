@@ -45,22 +45,22 @@ BehaviourTree.DecoratorNode.new = function(name: string | nil, wrapperFn: (() ->
     return DecoratorNode.new(name, wrapperFn, onCompleteFn)
 end
 BehaviourTree.DecoratorNode.Inverter.new = function(name: string | nil)
-    return BehaviourTree.DecoratorNode.new(name, nil, function(result)
+    return BehaviourTree.DecoratorNode.new(name or "Inverter", nil, function(result)
         return not result
     end)
 end
 BehaviourTree.DecoratorNode.Succeeder.new = function(name: string | nil)
-    return BehaviourTree.DecoratorNode.new(name, nil, function(_)
+    return BehaviourTree.DecoratorNode.new(name or "Succeeder", nil, function(_)
         return true
     end)
 end
 BehaviourTree.DecoratorNode.Failer.new = function(name: string | nil)
-    return BehaviourTree.DecoratorNode.new(name, nil, function(_)
+    return BehaviourTree.DecoratorNode.new(name or "Failer", nil, function(_)
         return false
     end)
 end
-BehaviourTree.DecoratorNode.Repeater.new = function(name: string | nil, count: number)
-    return BehaviourTree.DecoratorNode.new(name, function(runChild)
+BehaviourTree.DecoratorNode.Repeater.new = function( count: number, name: string | nil)
+    return BehaviourTree.DecoratorNode.new(name or "Repeater", function(runChild)
         for _ = 1, count do
             runChild()
         end

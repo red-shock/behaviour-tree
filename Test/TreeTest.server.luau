@@ -33,8 +33,31 @@ end)
 
 isDeadSequence:addChild({isDeadCondition, dieAction})
 isWalkSequence:addChild({isWalkCondition, walkAction})
-tree:addChild({isDeadSequence, isWalkSequence, idleAction})
-print(tree)
+--tree:addChild({isDeadSequence, isWalkSequence, idleAction})
+--print(tree)
+
+local parallelNode = BT.ParallelNode.new("ParallelNode")
+local failer = BT.DecoratorNode.Repeater.new(3)
+local printAction1 = BT.ActionNode.new("PrintAction1", function()
+    print("Action 1 executed")
+end)
+failer:addChild(printAction1)
+
+local printAction2 = BT.ActionNode.new("PrintAction2", function()
+    print("Action 2 executed")
+end)
+local printAction3 = BT.ActionNode.new("PrintAction3", function()
+    print("Action 3 executed")
+end)
+
+print("adding children to parallel node")
+parallelNode:addChild({failer, printAction2, printAction3})
+
+print("adding parallel node to tree")
+local pTree = BT.new(parallelNode)
+pTree.debugLevel = 1
+
+print(pTree)
 
 local connection
 tree.Paused.Event:Connect(function()
@@ -46,7 +69,7 @@ tree.Paused.Event:Connect(function()
 end)
 
 connection = RunService.Heartbeat:Connect(function(dt)
-    tree:run()
+    pTree:run()
 end)
 
 

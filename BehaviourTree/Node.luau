@@ -77,8 +77,6 @@ end
 function Node.isInstanceOf(node: any)
     local mt = getmetatable(node)
 	while mt do
-        print(mt)
-        print(Node)
 		if rawequal(mt, Node) then
 			return true
 		end

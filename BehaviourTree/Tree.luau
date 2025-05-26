@@ -20,12 +20,12 @@ function Tree.new(root : Node.Node)
     self.paused = false
     self.Paused = Instance.new("BindableEvent") :: BindableEvent
     self.debugLevel = 0
-    self:_setRoot(root)
+    self:_addSingleNode(root)
     return self
 end
 
 function Tree:addChild(child: Node.Node | { Node.Node })
-    if #child == 1 then
+    if #child == 0 then
         self:_addSingleNode(child)
     elseif #child > 1 then
         self:_addNodeList(child)
@@ -45,6 +45,15 @@ function Tree:_addNodeList(nodeList: { Node.Node })
 end
 
 function Tree:_addSingleNode(node: Node.Node)
+    if not self.root then
+        self:_setRoot(node)
+        self:_setTree(self.root)
+    else
+        self.root:addChild(node)
+    end
+end
+
+function Tree:_setTree(node: Node.Node)
     local function setTree(child: Node.Node)
         if child.children then
             for _, n in ipairs(child.children) do
@@ -53,22 +62,15 @@ function Tree:_addSingleNode(node: Node.Node)
         end
         child.tree = self
     end
-
     setTree(node)
-    if not self.root then
-        self._setRoot(node)
-    else
-        self.root:addChild(node)
-    end
 end
 
 function Tree:_setRoot(node)
     if self.root or not Node.isInstanceOf(node) then
-        error(`Root cannot be set to ${node}`)
+        error(`Root cannot be set to {node}`)
     end
     self.root = node:clone()
     self.root.name = self.uuid
-    self.root.tree = self
 end
 
 function Tree:run()

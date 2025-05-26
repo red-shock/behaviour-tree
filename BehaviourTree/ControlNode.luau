@@ -65,6 +65,9 @@ function ControlNode:_addSingleNode(child: Node.Node)
     local newChild = child:clone()
     newChild.parent = self
     table.insert(self.children, newChild)
+    if self.tree then
+        self.tree:_setTree(newChild)
+    end
 end
 
 function ControlNode:_addNodeList(nodeList: { Node.Node })
