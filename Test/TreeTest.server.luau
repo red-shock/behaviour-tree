@@ -3,11 +3,10 @@ local RunService = game:GetService("RunService")
 local Rig = game.Workspace:WaitForChild("Rig")
 local Humanoid = Rig:WaitForChild("Humanoid")
 
-local counter = 0
-
 local BT = require(ServerScriptService.BehaviourTree)
 
 local tree = BT.new()
+tree.debugLevel = 1
 
 local isDeadSequence = BT.SequenceNode.new("IsDeadSequence")
 local isDeadCondition = BT.ConditionNode.new("isDead?", function()
@@ -46,7 +45,8 @@ tree.Paused.Event:Connect(function()
     end
 end)
 
-connection = RunService.Heartbeat:Connect(function()
-    --counter += 1
+connection = RunService.Heartbeat:Connect(function(dt)
     tree:run()
 end)
+
+

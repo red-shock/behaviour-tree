@@ -108,7 +108,7 @@ end
 
 function ControlNode:_runSequence()
     for _, child in ipairs(self.children) do
-        self:_runChild(child)
+        child:run()
 
         if child.status == Enums.Status.RUNNING then
             self.status = Enums.Status.RUNNING
@@ -128,7 +128,7 @@ end
 
 function ControlNode:_runFallback()
     for _, child in ipairs(self.children) do
-        self:_runChild(child)
+        child:run()
 
         if child.status == Enums.Status.RUNNING then
             self.status = Enums.Status.RUNNING
