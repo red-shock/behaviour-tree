@@ -59,15 +59,18 @@ function ExecutionNode:run()
         end)
 
         coroutine.resume(self._coroutine.fn)
+        self.tree:debugPrint(`Entering {self.name} ({self.nodeType}) [IDLE -> RUNNING]`, Enums.DebugLevel.TRANSITIONS)
         self.status = Enums.Status.RUNNING
     else
         if coroutine.status(self._coroutine.fn) == "dead" then
-            self.tree:debugPrint(`{self.name} coroutine is dead, resetting. Success: {self._coroutine.success}, Result: {self._coroutine.result}`, 2)
+            self.tree:debugPrint(`{self.name} coroutine is dead, resetting. Success: {self._coroutine.success}, Result: {self._coroutine.result}`, Enums.DebugLevel.VERBOSE)
             if not self._coroutine.success then
                 self.status = Enums.Status.FAILURE
+                self.tree:debugPrint(`Exiting {self.name} ({self.nodeType}) [RUNNING -> FAILURE]`, Enums.DebugLevel.TRANSITIONS)
             else
                 if self.nodeType == Enums.NodeType.ACTION then
                     self.status = Enums.Status.SUCCESS
+                    self.tree:debugPrint(`Exiting {self.name} ({self.nodeType}) [RUNNING -> SUCCESS]`, Enums.DebugLevel.TRANSITIONS)
                     if self.isTerminator then
                         if not self.tree then
                             error("Tree is not set, cannot pause")
@@ -76,6 +79,7 @@ function ExecutionNode:run()
                     end
                 elseif self.nodeType == Enums.NodeType.CONDITION then
                     self.status = self._coroutine.result and Enums.Status.SUCCESS or Enums.Status.FAILURE
+                    self.tree:debugPrint(`Exiting {self.name} ({self.nodeType}) [RUNNING -> {self.status}]`, Enums.DebugLevel.TRANSITIONS)
                 end
             end
             self._coroutine = nil

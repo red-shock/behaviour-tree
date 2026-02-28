@@ -19,7 +19,7 @@ function Tree.new(root : Node.Node)
     self.uuid = HttpService:GenerateGUID(false)
     self.paused = false
     self.Paused = Instance.new("BindableEvent") :: BindableEvent
-    self.debugLevel = 0
+    self.debugLevel = Enums.DebugLevel.NONE
     self:_addSingleNode(root)
     return self
 end
@@ -81,7 +81,7 @@ function Tree:run()
     end
 
     if self.root.status ~= Enums.Status.RUNNING and not self.paused then
-        self:debugPrint("TICK BEGIN")
+        self:debugPrint("TICK BEGIN", Enums.DebugLevel.BASIC)
     end
     self.root:run()
 end

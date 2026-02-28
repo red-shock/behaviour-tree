@@ -153,7 +153,7 @@ function ControlNode:_reset()
     for node, status in pairs(self._statusTable) do
         if status == Enums.Status.RUNNING then
             if type(node._cancelThread) == "function" then
-                self.tree:debugPrint(`{node.name} is running, cancelling thread`, 2)
+                self.tree:debugPrint(`{node.name} is running, cancelling thread`, Enums.DebugLevel.VERBOSE)
                 node:_cancelThread()
             end
         end
