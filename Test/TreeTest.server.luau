@@ -10,49 +10,49 @@ tree.debugLevel = 1
 
 local isDeadSequence = BT.SequenceNode.new("IsDeadSequence")
 local isDeadCondition = BT.ConditionNode.new("isDead?", function()
-    return Humanoid.Health <= 0
+	return Humanoid.Health <= 0
 end)
 local dieAction = BT.ActionNode.new("Die", function()
-    Humanoid.parent:Destroy()
-    print(`#{Rig.Name} Died`)
+	Humanoid.parent:Destroy()
+	print(`#{Rig.Name} Died`)
 end, true)
 
 local isWalkSequence = BT.SequenceNode.new("IsWalkSequence")
 local isWalkCondition = BT.ConditionNode.new("isWalking?", function()
-    return true
+	return true
 end)
 local walkAction = BT.ActionNode.new("Walk", function()
-    print(`#{Rig.Name} is walking`)
-    task.wait(5)
-    print(`#{Rig.Name} has walked`)
+	print(`#{Rig.Name} is walking`)
+	task.wait(5)
+	print(`#{Rig.Name} has walked`)
 end)
 
 -- selene: allow(unused_variable)
 local idleAction = BT.ActionNode.new("Idle", function()
-    print(`#{Rig.Name} is idling`)
+	print(`#{Rig.Name} is idling`)
 end)
 
-isDeadSequence:addChild({isDeadCondition, dieAction})
-isWalkSequence:addChild({isWalkCondition, walkAction})
+isDeadSequence:addChild({ isDeadCondition, dieAction })
+isWalkSequence:addChild({ isWalkCondition, walkAction })
 --tree:addChild({isDeadSequence, isWalkSequence, idleAction})
 --print(tree)
 
 local parallelNode = BT.ParallelNode.new("ParallelNode")
 local failer = BT.DecoratorNode.Repeater.new(3)
 local printAction1 = BT.ActionNode.new("PrintAction1", function()
-    print("Action 1 executed")
+	print("Action 1 executed")
 end)
 failer:addChild(printAction1)
 
 local printAction2 = BT.ActionNode.new("PrintAction2", function()
-    print("Action 2 executed")
+	print("Action 2 executed")
 end)
 local printAction3 = BT.ActionNode.new("PrintAction3", function()
-    print("Action 3 executed")
+	print("Action 3 executed")
 end)
 
 print("adding children to parallel node")
-parallelNode:addChild({failer, printAction2, printAction3})
+parallelNode:addChild({ failer, printAction2, printAction3 })
 
 print("adding parallel node to tree")
 local pTree = BT.new(parallelNode)
@@ -62,15 +62,13 @@ print(pTree)
 
 local connection
 tree.Paused.Event:Connect(function()
-    print("Tree paused")
-    tree:cancelActiveExecutionActions()
-    if connection then
-        connection:Disconnect()
-    end
+	print("Tree paused")
+	tree:cancelActiveExecutionActions()
+	if connection then
+		connection:Disconnect()
+	end
 end)
 
 connection = RunService.Heartbeat:Connect(function(_)
-    pTree:run()
+	pTree:run()
 end)
-
-
