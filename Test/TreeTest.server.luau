@@ -27,6 +27,7 @@ local walkAction = BT.ActionNode.new("Walk", function()
     print(`#{Rig.Name} has walked`)
 end)
 
+-- selene: allow(unused_variable)
 local idleAction = BT.ActionNode.new("Idle", function()
     print(`#{Rig.Name} is idling`)
 end)
@@ -68,7 +69,7 @@ tree.Paused.Event:Connect(function()
     end
 end)
 
-connection = RunService.Heartbeat:Connect(function(dt)
+connection = RunService.Heartbeat:Connect(function(_)
     pTree:run()
 end)
 

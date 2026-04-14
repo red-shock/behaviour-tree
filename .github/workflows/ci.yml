@@ -31,7 +31,10 @@ jobs:
       - name: Lint
         run: |
           selene generate-roblox-std
-          selene src
+          selene BehaviourTree
+          selene Test
 
       - name: Check format
-        run: stylua --check src
+        run: |
+          stylua --check BehaviourTree
+          stylua --check Test
