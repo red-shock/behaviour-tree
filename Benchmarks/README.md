@@ -87,7 +87,7 @@ The preflight checks validate equivalent work within each benchmark fixture. The
 
 ### Generic decision replay
 
-The [DecisionCycle suite](lib/Suites/DecisionCycle.luau) uses this invented worker tree:
+The [DecisionCycle suite](lib/Suites/DecisionCycle.luau) registers scenarios using the [DecisionCycle fixture](lib/Fixtures/DecisionCycle.luau), which implements this invented worker tree:
 
 ```text
 Sequence: worker
@@ -113,7 +113,9 @@ lute Benchmarks/Prepare.luau --workload DecisionCycle --case decision-cycle-ordi
 
 ## Scenario modules and named checks
 
-Each workload lives in its own module under `lib/Suites`: [Diagnostics](lib/Suites/Diagnostics.luau), [Reset](lib/Suites/Reset.luau), [Construction](lib/Suites/Construction.luau), [Actions](lib/Suites/Actions.luau), [Cancellation](lib/Suites/Cancellation.luau), and [DecisionCycle](lib/Suites/DecisionCycle.luau). `lib/Workloads.luau` only collects those suites. Shared fixtures and capability checks live under `lib/Fixtures`.
+Each workload has a scenario module under `lib/Suites`: [Diagnostics](lib/Suites/Diagnostics.luau), [Reset](lib/Suites/Reset.luau), [Construction](lib/Suites/Construction.luau), [Actions](lib/Suites/Actions.luau), [Cancellation](lib/Suites/Cancellation.luau), and [DecisionCycle](lib/Suites/DecisionCycle.luau). These files contain `describe`/`test` registrations, scenario parameters, and references to capability checks. `lib/Workloads.luau` only collects those suites.
+
+All setup, measured operations, verification, metrics, and cleanup implementations live under `lib/Fixtures`. [Reset](lib/Fixtures/Reset.luau), [Construction](lib/Fixtures/Construction.luau), [Cancellation](lib/Fixtures/Cancellation.luau), and [DecisionCycle](lib/Fixtures/DecisionCycle.luau) have dedicated fixture modules. Diagnostics and Actions share [Tick](lib/Fixtures/Tick.luau); [Tree](lib/Fixtures/Tree.luau) provides common tree helpers and [Support](lib/Fixtures/Support.luau) provides capability checks.
 
 Suites use `Suite.describe` and register named `test` scenarios. Each fixture exposes `step`, `verify`, `metrics`, and `cleanup`. `step` contains the measured operation; `verify(iterations, test)` contains named expectations outside the timed interval:
 
@@ -129,7 +131,7 @@ return Suite.describe("Reset", function(test)
     })
 end)
 
--- Inside the fixture:
+-- Inside lib/Fixtures/Reset.luau:
 verify = function(iterations, test)
     test("clears the success counter", function()
         assert(root._successCount == 0, `Expected 0, got {root._successCount}`)

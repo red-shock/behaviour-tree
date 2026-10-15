@@ -9,6 +9,13 @@ function Support.synchronousActions(BT, role)
 	return nil
 end
 
+function Support.nodeAdoption(BT, role)
+	if role == "candidate" and not (BT.adopt and BT.ControlNode.adoptChild) then
+		return "BT.adopt/adoptChild are not available"
+	end
+	return nil
+end
+
 function Support.parallelAccounting(BT)
 	local root = BT.ParallelNode.new("AccountingGate")
 	root:addChild(BT.ActionNode.new("First", Tree.noOp, false))
@@ -23,6 +30,13 @@ function Support.parallelAccounting(BT)
 		return "Requires correct immediate parallel accounting on BOTH revisions"
 	end
 	return nil
+end
+
+function Support.cancellation(BT)
+	if type(BT.ControlNode._cancel) ~= "function" then
+		return "Requires recursive cancellation on BOTH revisions"
+	end
+	return Support.parallelAccounting(BT)
 end
 
 return Support
