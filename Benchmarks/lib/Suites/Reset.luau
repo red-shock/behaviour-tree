@@ -53,14 +53,18 @@ local function fixture(BT, _, probe, width)
 	}
 end
 
-return Suite.describe("Reset", function(test)
-	for _, width in ipairs({ 0, 16, 128 }) do
-		test(`populate and reset {width} cached results`, {
-			id = `reset-width{width}`,
-			unit = "populate and reset",
-			create = function(BT, role, probe)
-				return fixture(BT, role, probe, width)
-			end,
-		})
-	end
-end)
+return Suite.describe(
+	"Reset",
+	function(test)
+		for _, width in ipairs({ 0, 16, 128 }) do
+			test(`populate and reset {width} cached results`, {
+				id = `reset-width{width}`,
+				unit = "populate and reset",
+				create = function(BT, role, probe)
+					return fixture(BT, role, probe, width)
+				end,
+			})
+		end
+	end,
+	"Short-lived control cycles repeatedly clear private result caches; replacement allocations can dominate nearly empty resets."
+)

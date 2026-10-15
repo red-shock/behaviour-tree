@@ -1,7 +1,7 @@
 local Suite = {}
 
 -- Registration only: fixture creation and timing happen later in Runner.
-function Suite.describe(name, define)
+function Suite.describe(name, define, rationale)
 	assert(type(name) == "string" and name ~= "", "A workload suite needs a name")
 	local cases, ids = {}, {}
 	define(function(testName, definition)
@@ -16,6 +16,7 @@ function Suite.describe(name, define)
 		local case = table.clone(definition)
 		case.name = testName
 		case.workload = name
+		case.rationale = definition.rationale or rationale
 		case.unsupported = case.unsupported or function()
 			return nil
 		end

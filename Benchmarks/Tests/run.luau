@@ -32,6 +32,7 @@ local function simulation(options)
 		id = "fake",
 		name = "fake scenario",
 		workload = "Diagnostics",
+		rationale = "Cheap callbacks repeat on every tick.",
 		unit = "operation",
 		unsupported = function(_, role)
 			if options.supportError and role == "candidate" then
@@ -144,6 +145,7 @@ test("runner calibrates paired batches and excludes waits", function()
 	assert(created == cleaned and yields == created, "Unbalanced fixture lifecycle")
 	assert(record.probes.baseline.steps == 3, "Wrong probe count")
 	assert(#record.checks.baseline == 3 and #record.checks.candidate == 3, "Preflight check results were not saved")
+	assert(record.rationale == "Cheap callbacks repeat on every tick.", "Scenario rationale was not saved")
 	for index = 2, #record.rawBatchSeconds.order do
 		assert(
 			record.rawBatchSeconds.order[index] ~= record.rawBatchSeconds.order[index - 1],
@@ -223,8 +225,9 @@ end)
 test("describe/test definitions have scenario names and unique ids", function()
 	local cases = Suite.describe("Example", function(defineTest)
 		defineTest("named scenario", { id = "named", unit = "operation", create = function() end })
-	end)
+	end, "Repeated visits expose fixed per-node overhead.")
 	assert(cases[1].workload == "Example" and cases[1].name == "named scenario", "Scenario hierarchy was lost")
+	assert(cases[1].rationale == "Repeated visits expose fixed per-node overhead.", "Suite rationale was lost")
 	assert(cases[1].unsupported() == nil, "A default capability check rejected the scenario")
 	assert(not pcall(Suite.describe, "Example", function(defineTest)
 		for _ = 1, 2 do
@@ -251,6 +254,7 @@ test("reporter shows group, scenario, check, variant, phase, and totals", functi
 	assert(summary.measured == 1 and summary.failed == 1 and summary.skipped == 1, "Incorrect totals")
 	local text, failures = table.concat(output, "\n"), table.concat(errors, "\n")
 	assert(string.find(text, "describe Diagnostics", 1, true), "Missing group header")
+	assert(string.find(text, "Why: Cheap callbacks repeat on every tick.", 1, true), "Missing workload rationale")
 	assert(string.find(text, "PASS fake scenario [fake]", 1, true), "Missing scenario result")
 	assert(string.find(text, "SKIP fake scenario", 1, true), "Skipped scenario disappeared")
 	assert(
@@ -266,6 +270,7 @@ test("workloads have distinct stable ids and prerequisite gates", function()
 		assert(not seen[case.id], `Duplicate workload {case.id}`)
 		seen[case.id] = true
 		assert(type(case.name) == "string" and case.name ~= "", "Scenario has no readable test name")
+		assert(type(case.rationale) == "string" and case.rationale ~= "", "Scenario has no generic workload rationale")
 		counts[case.workload] = (counts[case.workload] or 0) + 1
 		assert(type(case.create) == "function" and type(case.unsupported) == "function", "Missing fixture functions")
 		if case.workload == "Cancellation" then
@@ -280,7 +285,8 @@ test("workloads have distinct stable ids and prerequisite gates", function()
 			and counts.Reset == 3
 			and counts.Construction == 6
 			and counts.Actions == 5
-			and counts.Cancellation == 4,
+			and counts.Cancellation == 4
+			and counts.DecisionCycle == 4,
 		"Unexpected workload inventory"
 	)
 end)

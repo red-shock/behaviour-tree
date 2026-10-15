@@ -4,6 +4,7 @@ local suites = {
 	if script then require(script.Parent.Suites.Construction) else require("./Suites/Construction"),
 	if script then require(script.Parent.Suites.Actions) else require("./Suites/Actions"),
 	if script then require(script.Parent.Suites.Cancellation) else require("./Suites/Cancellation"),
+	if script then require(script.Parent.Suites.DecisionCycle) else require("./Suites/DecisionCycle"),
 }
 
 local Workloads = {}

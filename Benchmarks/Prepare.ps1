@@ -2,7 +2,7 @@
 param(
     [string]$Baseline = 'HEAD',
     [string]$Candidate = 'WORKTREE',
-    [ValidateSet('All', 'Diagnostics', 'Reset', 'Construction', 'Actions', 'Cancellation')]
+    [ValidateSet('All', 'Diagnostics', 'Reset', 'Construction', 'Actions', 'Cancellation', 'DecisionCycle')]
     [string]$Workload = 'All',
     [string]$Case = '',
     [ValidateRange(3, 101)][int]$Samples = 21,

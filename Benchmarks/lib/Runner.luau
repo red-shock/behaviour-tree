@@ -184,6 +184,7 @@ function Runner.run(baseline, candidate, cases, config, hooks)
 				id = case.id,
 				name = case.name or case.id,
 				workload = case.workload,
+				rationale = case.rationale,
 				unit = case.unit,
 				checks = {},
 			}

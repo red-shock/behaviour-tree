@@ -14,4 +14,4 @@ return Suite.describe("Diagnostics", function(test)
 			})
 		end
 	end
-end)
+end, "Frequent ticks through cheap leaves can spend time formatting diagnostics even when logging is disabled.")

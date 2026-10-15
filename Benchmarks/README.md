@@ -2,6 +2,21 @@
 
 Compare two snapshots of this library in the same empty Roblox Studio place. The runner warms both versions, alternates their order, verifies results before timing, and saves raw samples and per-operation summaries.
 
+## Why these workloads exist
+
+Behaviour-tree overhead becomes visible when many small callbacks run repeatedly, large trees select only a small part of their branches, or fresh trees are assembled for independent actors. The suite models those usage patterns with synthetic inputs and generic callbacks.
+
+| Workload | Pressure being modelled | What the comparison should reveal |
+| --- | --- | --- |
+| Diagnostics | A frequent tick performs cheap checks and updates while diagnostics are disabled. Formatting can cost more than the callback itself. | Whether disabled logging avoids formatting work, with enabled logging as the adverse case. |
+| Reset | Guards fail or short sequences finish repeatedly, clearing result storage that is often empty. | Whether storage reuse reduces replacement allocations without changing reset behaviour. Larger tables cover the clearing cost; retained capacity still needs separate memory analysis. |
+| Construction | A fresh nested tree is assembled bottom-up for each owner. Attaching subtrees can repeatedly copy already-built descendants. | Whether explicit ownership avoids redundant copies while preserving correct links. Deep and wide shapes expose attachment and validation costs. |
+| Actions | Many actions only update a small piece of state and finish immediately, while a few actions genuinely span ticks. | Whether an explicit immediate path reduces per-call execution overhead while preserving the ordinary suspended path. |
+| Cancellation | Priority guards select one branch and leave large alternative branches untouched; a later priority change can obsolete active work. | Whether cleanup cost follows evaluated work. Sparse, dense, and preemption cases check the tradeoff while requiring equivalent cleanup semantics. |
+| DecisionCycle | Maintenance, guarded decisions, cached preparation, and suspended work interact across repeated ticks and multiple independent trees. | Whether a change still helps in a mixed control flow after its isolated mechanism has been measured. |
+
+These are benchmark motivations, not measured improvements. Fixture sizes, names, and input sequences are synthetic choices. Keep one change isolated in an A/B comparison before combining changes in the decision replay.
+
 ## Run a comparison
 
 Use PowerShell from the repository root with Git and Rojo on PATH. `foreman install` installs the pinned project tools; the benchmark preparation script itself only needs Git, PowerShell, and Rojo.
@@ -35,7 +50,7 @@ Supported options:
     -PrintJson -Build
 ```
 
-`-Workload` accepts `All`, `Diagnostics`, `Reset`, `Construction`, `Actions`, or `Cancellation`. Omit `-Build` to obtain a Rojo project for `rojo serve <printed-project-path>`. Every preparation gets its own directory, so earlier snapshots are preserved.
+`-Workload` accepts `All`, `Diagnostics`, `Reset`, `Construction`, `Actions`, `Cancellation`, or `DecisionCycle`. Omit `-Build` to obtain a Rojo project for `rojo serve <printed-project-path>`. Every preparation gets its own directory, so earlier snapshots are preserved.
 
 Use `-Case` with an exact scenario ID from Output to rerun only that scenario:
 
@@ -49,7 +64,7 @@ For a quick setup check, use `-Samples 3 -WarmupBatches 1 -MaxIterations 4 -Targ
 
 ## Workloads
 
-The current suite has 24 cases. Thirteen cases can run on the current library; eleven require additional APIs or cancellation/accounting capabilities and report `skipped` when those are unavailable.
+The current suite has 28 cases. Fifteen cases can run on the current library; thirteen require additional APIs or cancellation/accounting capabilities and report `skipped` when those are unavailable.
 
 | Group | Workloads | Untimed mechanism probes |
 | --- | --- | --- |
@@ -58,6 +73,7 @@ The current suite has 24 cases. Thirteen cases can run on the current library; e
 | Construction | Wide, deep, and balanced fresh trees; clone/clone control and clone/adopt comparison | Clone calls, copied-node count, required nodes |
 | Actions | Ordinary-action control, 1/32/128 synchronous actions, and immediate actions before a suspended leaf | Distinct callback thread identities, leaf calls |
 | Cancellation | Early-failing sequence, early-success fallback, fully visited nested tree, and priority switch | Recursive cancellation calls and callback trace |
+| DecisionCycle | Six-tick replay for 1/16 workers; optional synchronous-update and parallel-maintenance profiles | Condition/update counts, callback thread identities, ticks per cycle |
 
 Optional adoption cases use `BT.adopt` and `adoptChild` on the candidate only, while their baseline uses the cloning APIs. Optional synchronous-action cases use `SynchronousActionNode.new` on the candidate only. These adapters describe the APIs a candidate must supply to run those comparisons. If your implementation uses different API names, update the adapters before measuring; never fall back silently to the ordinary path.
 
@@ -65,9 +81,35 @@ The baseline and candidate must share the same callback/status trace in prefligh
 
 The preflight checks validate equivalent work within each benchmark fixture. The suite's suspended leaves use an explicitly owned raw `coroutine.yield`, never a task scheduler delay. Correct cancellation of `task.wait` or signal waits requires separate Roblox integration tests.
 
+### Generic decision replay
+
+The [DecisionCycle suite](lib/Suites/DecisionCycle.luau) uses this invented worker tree:
+
+```text
+Sequence: worker
+  Maintenance: refresh local state, observe inputs
+  Fallback: dispatch by priority
+    Sequence: unavailable? -> defer
+    Sequence: result ready? -> commit
+    Sequence: assignment available?
+      Fallback: cached plan valid? -> prepare plan
+      Process: work that suspends until the driver resumes it
+    Idle
+```
+
+One operation replays six ticks: unavailable, idle, start assigned work, keep work suspended, complete work, then commit the result. Maintenance runs each tick; priority guards short-circuit lower branches; preparation runs once while its cached result is reused. The fixture checks the full callback trace, each root status, per-worker counters, and released execution handles. Every worker owns independent state and a separate tree.
+
+The ordinary profiles use 1 and 16 workers. The synchronous profile changes only the candidate's immediate actions; the suspended action and conditions retain their ordinary execution path. The parallel profile groups the two maintenance actions under a parallel control on both revisions and requires correct immediate parallel result accounting. Tree construction stays outside these replay timings; use Construction to measure that cost separately.
+
+The driver resumes its own raw coroutine before switching to the completion branch, so the ordinary replay works with the current library's cancellation behaviour. Priority preemption remains an explicit Cancellation workload. Replay timings include input assignment and manual completion delivery as well as tree ticks. The worker count and six-tick cadence describe a synthetic replay, not a real-time scheduler or a capacity prediction.
+
+```powershell
+.\Benchmarks\Prepare.ps1 -Workload DecisionCycle -Case decision-cycle-ordinary-workers16 -Build
+```
+
 ## Scenario modules and named checks
 
-Each workload lives in its own module under `lib/Suites`: [Diagnostics](lib/Suites/Diagnostics.luau), [Reset](lib/Suites/Reset.luau), [Construction](lib/Suites/Construction.luau), [Actions](lib/Suites/Actions.luau), and [Cancellation](lib/Suites/Cancellation.luau). `lib/Workloads.luau` only collects those suites. Shared tree/tick fixtures live under `lib/Fixtures`.
+Each workload lives in its own module under `lib/Suites`: [Diagnostics](lib/Suites/Diagnostics.luau), [Reset](lib/Suites/Reset.luau), [Construction](lib/Suites/Construction.luau), [Actions](lib/Suites/Actions.luau), [Cancellation](lib/Suites/Cancellation.luau), and [DecisionCycle](lib/Suites/DecisionCycle.luau). `lib/Workloads.luau` only collects those suites. Shared fixtures and capability checks live under `lib/Fixtures`.
 
 Suites use `Suite.describe` and register named `test` scenarios. Each fixture exposes `step`, `verify`, `metrics`, and `cleanup`. `step` contains the measured operation; `verify(iterations, test)` contains named expectations outside the timed interval:
 
@@ -95,6 +137,8 @@ verify = function(iterations, test)
 end
 ```
 
+`Suite.describe` also accepts a generic rationale as its third argument. Each suite explains the workload pressure being measured; Output prints it below the suite heading, and each JSON record retains it as `rationale`, including skipped or failed scenarios.
+
 Independent checks all run, collecting each failure. Setup, operation, verification, metrics, and cleanup errors include their stage, revision role, and phase (`support`, `preflight`, `calibration`, `warmup`, or `sample`); repeated phases also include the batch number. Teardown still runs after operation/check failures, and a cleanup error is reported alongside earlier failures.
 
 Output groups scenarios beneath `describe` headings and marks each `RUN`, `PASS`, `SKIP`, or `FAIL`. For example, a broken reset can produce:
@@ -115,7 +159,7 @@ Output reports baseline and candidate median microseconds per named operation, f
 
 The full report is stored in `ServerStorage.BehaviourTreeBenchmarkResults.Value`. Copy the Value while the play session is still running, in server view, and save it beside that run's `manifest.json` as `results.json`. With `-PrintJson`, Output also prints the JSON in 4,000-character chunks between `BT_BENCH_JSON_BEGIN` and `BT_BENCH_JSON_END`; join those payload chunks without Output timestamps or prefixes when saving.
 
-The JSON report uses schema version 2. It includes scenario names and IDs, successful preflight check results by revision, structured failures (`variant`, `phase`, `batch`, `stage`, `check`, `message`), and overall totals. It also includes every completed scenario's raw baseline/candidate batch duration, execution order, iteration count, per-operation statistics, mechanism probe counts, skipped/failed cases, manifest, and Roblox version. Probe counts come from a separate three-iteration instrumented pass, not the timed samples. Distinct callback thread identities demonstrate thread usage; they are not a full allocation or memory measurement.
+The JSON report uses schema version 2. It includes scenario names and IDs, generic workload rationale, successful preflight check results by revision, structured failures (`variant`, `phase`, `batch`, `stage`, `check`, `message`), and overall totals. It also includes every completed scenario's raw baseline/candidate batch duration, execution order, iteration count, per-operation statistics, mechanism probe counts, skipped/failed cases, manifest, and Roblox version. Probe counts come from a separate three-iteration instrumented pass, not the timed samples. Distinct callback thread identities demonstrate thread usage; they are not a full allocation or memory measurement.
 
 ## Decide whether an optimisation helps
 

@@ -9,6 +9,9 @@ function Reporter.new(write, writeFailure)
 			if record.workload ~= activeSuite then
 				activeSuite = record.workload
 				write(`describe {record.workload}`)
+				if record.rationale then
+					write(`  Why: {record.rationale}`)
+				end
 			end
 			write(`  RUN {record.name} [{record.id}]`)
 		end,

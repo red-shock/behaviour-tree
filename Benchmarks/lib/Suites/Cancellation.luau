@@ -1,23 +1,12 @@
 local Suite = if script then require(script.Parent.Parent.Suite) else require("../Suite")
 local Tree = if script then require(script.Parent.Parent.Fixtures.Tree) else require("../Fixtures/Tree")
+local Support = if script then require(script.Parent.Parent.Fixtures.Support) else require("../Fixtures/Support")
 
 local function cancellationSupport(BT)
 	if type(BT.ControlNode._cancel) ~= "function" then
 		return "Requires recursive cancellation on BOTH revisions"
 	end
-	local root = BT.ParallelNode.new("AccountingGate")
-	root:addChild(BT.ActionNode.new("First", Tree.noOp, false))
-	root:addChild(BT.ActionNode.new("Second", Tree.noOp, false))
-	local tree = BT.new(root)
-	local ok, status = pcall(function()
-		tree:run()
-		return tree.root.status
-	end)
-	Tree.destroy(tree)
-	if not ok or status ~= BT.Enums.Status.SUCCESS then
-		return "Requires correct immediate parallel accounting on BOTH revisions"
-	end
-	return nil
+	return Support.parallelAccounting(BT)
 end
 
 local function fixture(BT, _, probe, mode)
@@ -98,21 +87,25 @@ local function fixture(BT, _, probe, mode)
 	}
 end
 
-return Suite.describe("Cancellation", function(test)
-	local names = {
-		sequence = "early-failing sequence with untouched branches",
-		fallback = "early-success fallback with untouched branches",
-		dense = "fully visited nested tree with 64 leaves",
-		switch = "priority switch preempts a suspended action",
-	}
-	for _, mode in ipairs({ "sequence", "fallback", "dense", "switch" }) do
-		test(names[mode], {
-			id = `cancellation-{mode}`,
-			unit = if mode == "switch" then "priority switch (two ticks)" else "tree tick",
-			unsupported = cancellationSupport,
-			create = function(BT, role, probe)
-				return fixture(BT, role, probe, mode)
-			end,
-		})
-	end
-end)
+return Suite.describe(
+	"Cancellation",
+	function(test)
+		local names = {
+			sequence = "early-failing sequence with untouched branches",
+			fallback = "early-success fallback with untouched branches",
+			dense = "fully visited nested tree with 64 leaves",
+			switch = "priority switch preempts a suspended action",
+		}
+		for _, mode in ipairs({ "sequence", "fallback", "dense", "switch" }) do
+			test(names[mode], {
+				id = `cancellation-{mode}`,
+				unit = if mode == "switch" then "priority switch (two ticks)" else "tree tick",
+				unsupported = cancellationSupport,
+				create = function(BT, role, probe)
+					return fixture(BT, role, probe, mode)
+				end,
+			})
+		end
+	end,
+	"Priority guards often leave large branches untouched; cleanup should be measured against both sparse visits and fully visited trees, including branch preemption."
+)
