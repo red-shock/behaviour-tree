@@ -34,8 +34,13 @@ jobs:
           selene generate-roblox-std
           selene BehaviourTree
           selene Test
+          selene Benchmarks
 
       - name: Check format
         run: |
           stylua --check BehaviourTree
           stylua --check Test
+          stylua --check Benchmarks
+
+      - name: Benchmark harness tests
+        run: lute Benchmarks/Tests/run.luau
