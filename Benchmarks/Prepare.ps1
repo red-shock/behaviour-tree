@@ -4,6 +4,7 @@ param(
     [string]$Candidate = 'WORKTREE',
     [ValidateSet('All', 'Diagnostics', 'Reset', 'Construction', 'Actions', 'Cancellation')]
     [string]$Workload = 'All',
+    [string]$Case = '',
     [ValidateRange(3, 101)][int]$Samples = 21,
     [ValidateRange(1, 20)][int]$WarmupBatches = 3,
     [ValidateRange(1, 4096)][int]$MaxIterations = 1024,
@@ -83,6 +84,7 @@ $manifest = [ordered]@{
     runnerHash = (Get-FileHash -LiteralPath (Join-Path $runDirectory 'Run.server.luau') -Algorithm SHA256).Hash.ToLowerInvariant()
     config = [ordered]@{
         workload = $Workload
+        case = $Case
         samples = $Samples
         warmupBatches = $WarmupBatches
         maxIterations = $MaxIterations

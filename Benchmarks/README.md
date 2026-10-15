@@ -37,6 +37,14 @@ Supported options:
 
 `-Workload` accepts `All`, `Diagnostics`, `Reset`, `Construction`, `Actions`, or `Cancellation`. Omit `-Build` to obtain a Rojo project for `rojo serve <printed-project-path>`. Every preparation gets its own directory, so earlier snapshots are preserved.
 
+Use `-Case` with an exact scenario ID from Output to rerun only that scenario:
+
+```powershell
+.\Benchmarks\Prepare.ps1 -Workload Reset -Case reset-width16 -Build
+```
+
+The workload and case filters must both match. An unmatched filter reports an error rather than producing an empty successful run.
+
 For a quick setup check, use `-Samples 3 -WarmupBatches 1 -MaxIterations 4 -TargetMilliseconds 1`. These small batches are smoke checks, not useful evidence of a small speed improvement.
 
 ## Workloads
@@ -57,13 +65,57 @@ The baseline and candidate must share the same callback/status trace in prefligh
 
 The preflight checks validate equivalent work within each benchmark fixture. The suite's suspended leaves use an explicitly owned raw `coroutine.yield`, never a task scheduler delay. Correct cancellation of `task.wait` or signal waits requires separate Roblox integration tests.
 
+## Scenario modules and named checks
+
+Each workload lives in its own module under `lib/Suites`: [Diagnostics](lib/Suites/Diagnostics.luau), [Reset](lib/Suites/Reset.luau), [Construction](lib/Suites/Construction.luau), [Actions](lib/Suites/Actions.luau), and [Cancellation](lib/Suites/Cancellation.luau). `lib/Workloads.luau` only collects those suites. Shared tree/tick fixtures live under `lib/Fixtures`.
+
+Suites use `Suite.describe` and register named `test` scenarios. Each fixture exposes `step`, `verify`, `metrics`, and `cleanup`. `step` contains the measured operation; `verify(iterations, test)` contains named expectations outside the timed interval:
+
+```luau
+return Suite.describe("Reset", function(test)
+    test("populate and reset 16 cached results", {
+        id = "reset-width16",
+        unit = "populate and reset",
+        create = function(BT, role, probe)
+            -- Return a fresh fixture for this revision and batch.
+            return makeFixture(BT, role, probe, 16)
+        end,
+    })
+end)
+
+-- Inside the fixture:
+verify = function(iterations, test)
+    test("clears the success counter", function()
+        assert(root._successCount == 0, `Expected 0, got {root._successCount}`)
+    end)
+    test("returns to IDLE", function()
+        assert(root.status == BT.Enums.Status.IDLE, "Reset retained status")
+    end)
+    return `empty:{iterations}` -- Comparable execution signature.
+end
+```
+
+Independent checks all run, collecting each failure. Setup, operation, verification, metrics, and cleanup errors include their stage, revision role, and phase (`support`, `preflight`, `calibration`, `warmup`, or `sample`); repeated phases also include the batch number. Teardown still runs after operation/check failures, and a cleanup error is reported alongside earlier failures.
+
+Output groups scenarios beneath `describe` headings and marks each `RUN`, `PASS`, `SKIP`, or `FAIL`. For example, a broken reset can produce:
+
+```text
+describe Reset
+  RUN populate and reset 16 cached results [reset-width16]
+  FAIL populate and reset 16 cached results [reset-width16]
+    candidate / preflight / verify / clears the success counter: Expected 0, got 16
+    candidate / preflight / verify / returns to IDLE: Reset retained status
+```
+
+A failing batch stops that scenario's measurement. The remaining scenarios continue. Output ends with passed/skipped/failed totals; after saving the full JSON report, the Studio runner raises an error if any scenario failed. A failed scenario never receives a timing summary. `PASS` means its checks and comparison completed, regardless of whether the candidate was faster.
+
 ## Read and save results
 
 Output reports baseline and candidate median microseconds per named operation, followed by the median paired percentage reduction and its p10/p90 spread. Positive reduction means the candidate was faster. For priority-switch cases, one operation includes two ticks. Construction measures node creation, attachment, validation, and tree creation; tree verification and event destruction occur outside the timer.
 
 The full report is stored in `ServerStorage.BehaviourTreeBenchmarkResults.Value`. Copy the Value while the play session is still running, in server view, and save it beside that run's `manifest.json` as `results.json`. With `-PrintJson`, Output also prints the JSON in 4,000-character chunks between `BT_BENCH_JSON_BEGIN` and `BT_BENCH_JSON_END`; join those payload chunks without Output timestamps or prefixes when saving.
 
-The JSON includes every raw baseline/candidate batch duration, execution order, iteration count, per-operation statistics, mechanism probe counts, skipped/failed cases, manifest, and Roblox version. Probe counts come from a separate three-iteration instrumented pass, not the timed samples. Distinct callback thread identities demonstrate thread usage; they are not a full allocation or memory measurement.
+The JSON report uses schema version 2. It includes scenario names and IDs, successful preflight check results by revision, structured failures (`variant`, `phase`, `batch`, `stage`, `check`, `message`), and overall totals. It also includes every completed scenario's raw baseline/candidate batch duration, execution order, iteration count, per-operation statistics, mechanism probe counts, skipped/failed cases, manifest, and Roblox version. Probe counts come from a separate three-iteration instrumented pass, not the timed samples. Distinct callback thread identities demonstrate thread usage; they are not a full allocation or memory measurement.
 
 ## Decide whether an optimisation helps
 
@@ -85,6 +137,6 @@ selene Benchmarks
 stylua --check Benchmarks
 ```
 
-Lute is pinned in the tool manifests. The tests cover statistics, calibration, alternating order, excluding waits, trace mismatches, skip handling, and cleanup on failures. They also load the unchanged library with test substitutes for GUIDs and BindableEvent lifetime to smoke-check the available workload fixtures. These local checks are not Roblox timing or task-scheduler tests.
+Lute is pinned in the tool manifests. The tests cover statistics, calibration, alternating order, excluding waits, trace mismatches, filters, named checks, failure context, continuing after failures, reporter output, skip handling, and cleanup on failures. Each real scenario also runs as its own source fixture smoke test, so CI identifies individual failures and skips. These use a synthetic clock and test substitutes for GUIDs and BindableEvent lifetime; they do not measure Roblox performance or validate its task scheduler.
 
 CI runs these harness tests and lint/format checks. Studio measurements remain an explicit benchmark run, with results retained alongside the implementation under review.

@@ -8,43 +8,28 @@ assert(RunService:IsStudio(), "Run benchmarks in a dedicated Studio place")
 local benchmark = ServerScriptService:WaitForChild("Benchmark")
 local manifest = HttpService:JSONDecode(require(benchmark.Manifest))
 local Runner = require(benchmark.Harness.Runner)
+local Reporter = require(benchmark.Harness.Reporter)
 local Workloads = require(benchmark.Harness.Workloads)
 local baseline = require(benchmark.Baseline)
 local candidate = require(benchmark.Candidate)
 
 print(`BehaviourTree benchmark: {manifest.baseline.label} -> {manifest.candidate.label}`)
+local reporter = Reporter.new(print, warn)
 local records = Runner.run(baseline, candidate, Workloads.create(), manifest.config, {
 	clock = os.clock,
 	yieldBetweenBatches = function()
 		task.wait()
 	end,
-	onCase = function(record)
-		if record.status == "measured" then
-			local summary = record.summary
-			print(
-				string.format(
-					"%s: %.3f -> %.3f us/%s; paired median reduction %.1f%% (p10 %.1f%%, p90 %.1f%%)%s",
-					record.id,
-					summary.baselineMicroseconds.median,
-					summary.candidateMicroseconds.median,
-					record.unit,
-					summary.pairedReductionPercent.median,
-					summary.pairedReductionPercent.p10,
-					summary.pairedReductionPercent.p90,
-					if record.belowTargetDuration then " [short batch: inspect timer noise]" else ""
-				)
-			)
-		else
-			print(`{record.id}: {record.status}: {record.reason}`)
-		end
-	end,
+	onCaseStart = reporter.onCaseStart,
+	onCase = reporter.onCase,
 })
+local summary = reporter.finish(records)
 
 -- Roblox's version() global is absent from the pinned Selene standard library.
 -- selene: allow(undefined_variable)
 local engineVersion = version()
 local report = {
-	schemaVersion = 1,
+	schemaVersion = 2,
 	manifest = manifest,
 	environment = {
 		robloxVersion = engineVersion,
@@ -52,6 +37,7 @@ local report = {
 		capturedAt = os.date("!%Y-%m-%dT%H:%M:%SZ"),
 	},
 	workloads = records,
+	summary = summary,
 }
 local result = Instance.new("StringValue")
 result.Name = "BehaviourTreeBenchmarkResults"
@@ -65,3 +51,4 @@ if manifest.printJson then
 	end
 	print("BT_BENCH_JSON_END")
 end
+assert(summary.failed == 0, "Benchmark scenarios failed; inspect the named checks above and the saved JSON report")

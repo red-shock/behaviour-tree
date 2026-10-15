@@ -1,0 +1,118 @@
+local Suite = if script then require(script.Parent.Parent.Suite) else require("../Suite")
+local Tree = if script then require(script.Parent.Parent.Fixtures.Tree) else require("../Fixtures/Tree")
+
+local function cancellationSupport(BT)
+	if type(BT.ControlNode._cancel) ~= "function" then
+		return "Requires recursive cancellation on BOTH revisions"
+	end
+	local root = BT.ParallelNode.new("AccountingGate")
+	root:addChild(BT.ActionNode.new("First", Tree.noOp, false))
+	root:addChild(BT.ActionNode.new("Second", Tree.noOp, false))
+	local tree = BT.new(root)
+	local ok, status = pcall(function()
+		tree:run()
+		return tree.root.status
+	end)
+	Tree.destroy(tree)
+	if not ok or status ~= BT.Enums.Status.SUCCESS then
+		return "Requires correct immediate parallel accounting on BOTH revisions"
+	end
+	return nil
+end
+
+local function fixture(BT, _, probe, mode)
+	local trace, cancellations = {}, 0
+	local enabled = false
+	local root = if mode == "fallback" or mode == "switch"
+		then BT.FallbackNode.new("Root")
+		else BT.SequenceNode.new("Root")
+	local function action(name, running)
+		return BT.ActionNode.new(name, function()
+			if probe then
+				table.insert(trace, name)
+			end
+			if running then
+				coroutine.yield()
+			end
+		end, false)
+	end
+	if mode ~= "dense" then
+		root:addChild(BT.ConditionNode.new("Guard", function()
+			if probe then
+				table.insert(trace, "guard")
+			end
+			return if mode == "switch" then enabled else mode == "fallback"
+		end))
+	end
+	for branchIndex = 1, (if mode == "switch" then 1 else 8) do
+		local branch = BT.SequenceNode.new(`Branch{branchIndex}`)
+		for leafIndex = 1, (if mode == "switch" then 1 else 8) do
+			branch:addChild(action(`{branchIndex}/{leafIndex}`, mode == "switch"))
+		end
+		root:addChild(branch)
+	end
+	local tree = BT.new(root)
+	if probe then
+		Tree.visit(tree.root, function(node)
+			local cancel = node._cancel
+			node._cancel = function(self)
+				cancellations += 1
+				return cancel(self)
+			end
+		end)
+	end
+	return {
+		step = function()
+			if mode == "switch" then
+				enabled = false
+				tree:run()
+				enabled = true
+			end
+			tree:run()
+		end,
+		verify = function(iterations, test)
+			local expected = if mode == "sequence" then BT.Enums.Status.FAILURE else BT.Enums.Status.SUCCESS
+			test("returns the expected root status", function()
+				assert(tree.root.status == expected, `Expected {expected}, got {tree.root.status}`)
+			end)
+			test("releases every owned coroutine", function()
+				Tree.visit(tree.root, function(node)
+					assert(node._coroutine == nil, `Node {node.name} still owns a coroutine`)
+				end)
+			end)
+			if probe then
+				test("invokes only the expected callbacks", function()
+					local perIteration = if mode == "dense" then 64 elseif mode == "switch" then 3 else 1
+					local expectedCalls = perIteration * iterations
+					assert(#trace == expectedCalls, `Expected {expectedCalls} callbacks, got {#trace}`)
+				end)
+			end
+			return if probe then table.concat(trace, ",") else expected
+		end,
+		metrics = function()
+			return { cancellationCalls = cancellations, callbackCalls = #trace }
+		end,
+		cleanup = function()
+			Tree.destroy(tree)
+		end,
+	}
+end
+
+return Suite.describe("Cancellation", function(test)
+	local names = {
+		sequence = "early-failing sequence with untouched branches",
+		fallback = "early-success fallback with untouched branches",
+		dense = "fully visited nested tree with 64 leaves",
+		switch = "priority switch preempts a suspended action",
+	}
+	for _, mode in ipairs({ "sequence", "fallback", "dense", "switch" }) do
+		test(names[mode], {
+			id = `cancellation-{mode}`,
+			unit = if mode == "switch" then "priority switch (two ticks)" else "tree tick",
+			unsupported = cancellationSupport,
+			create = function(BT, role, probe)
+				return fixture(BT, role, probe, mode)
+			end,
+		})
+	end
+end)
