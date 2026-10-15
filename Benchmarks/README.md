@@ -19,48 +19,52 @@ These are benchmark motivations, not measured improvements. Fixture sizes, names
 
 ## Run a comparison
 
-Use PowerShell from the repository root with Git and Rojo on PATH. `foreman install` installs the pinned project tools; the benchmark preparation script itself only needs Git, PowerShell, and Rojo.
+Run the Luau preparer with Lute and Git on PATH. Rojo is also needed for `--build`. `foreman install` installs the pinned Lute and Rojo tools. The commands below work from the repository root on Windows, macOS, and Linux; the script locates the repository relative to its own file.
 
 First measure the noise in an unchanged-versus-unchanged run:
 
-```powershell
-.\Benchmarks\Prepare.ps1 -Baseline HEAD -Candidate HEAD -Build
+```sh
+lute Benchmarks/Prepare.luau --baseline HEAD --candidate HEAD --build
 ```
 
 Open the printed `benchmark.rbxlx` path in a separate Studio window and press Play. Use the server Output and server Explorer views. This place contains only the two library snapshots and benchmark code; the Rig demo and your game do not run.
 
 For an uncommitted optimisation, compare the last commit with the working source:
 
-```powershell
-.\Benchmarks\Prepare.ps1 -Baseline HEAD -Candidate WORKTREE -Workload Diagnostics -Build
+```sh
+lute Benchmarks/Prepare.luau --baseline HEAD --candidate WORKTREE --workload Diagnostics --build
 ```
 
 For committed work, pass the before/after commit hashes or branch names. Compare only one performance change at a time. Cancellation workloads require recursive cancellation and correct immediate parallel accounting on both revisions; comparing correct cleanup with incomplete cleanup would be misleading.
 
 The preparer writes immutable source and harness snapshots under an ignored `.benchmarks/<run-id>/` directory. It does not change branches, commits, or production source. The manifest includes both resolved commits, SHA-256 source hashes, working-copy status, harness hashes, configuration, and an environment label. Regenerate the place after changing code; editing the repository does not update an already built snapshot.
 
+Committed snapshots contain the exact Git blobs; working-tree snapshots copy the current files, including untracked files in the library folder. Symlinks and submodules are rejected rather than followed. Manifest schema version 2 records `hashFormat`: hashes cover sorted relative paths and raw file bytes, so different line endings also change a fingerprint. Compare fingerprints only when their hash formats match.
+
 Supported options:
 
-```powershell
-.\Benchmarks\Prepare.ps1 `
-    -Baseline HEAD -Candidate WORKTREE `
-    -Workload All -Samples 21 -WarmupBatches 3 `
-    -TargetMilliseconds 5 -MaxIterations 1024 `
-    -EnvironmentLabel 'Desktop foreground Studio, profilers closed' `
-    -PrintJson -Build
+```sh
+lute Benchmarks/Prepare.luau --environment-label "Desktop foreground Studio, profilers closed" --print-json --build
 ```
 
-`-Workload` accepts `All`, `Diagnostics`, `Reset`, `Construction`, `Actions`, `Cancellation`, or `DecisionCycle`. Omit `-Build` to obtain a Rojo project for `rojo serve <printed-project-path>`. Every preparation gets its own directory, so earlier snapshots are preserved.
+| Timing option | Default | Accepted values |
+| --- | --- | --- |
+| `--samples` | 21 | Integer from 3 to 101 |
+| `--warmup-batches` | 3 | Integer from 1 to 20 |
+| `--max-iterations` | 1024 | Integer from 1 to 4096 |
+| `--target-ms` | 5 | Number from 1 to 50 |
 
-Use `-Case` with an exact scenario ID from Output to rerun only that scenario:
+`--workload` accepts `All`, `Diagnostics`, `Reset`, `Construction`, `Actions`, `Cancellation`, or `DecisionCycle`. Omit `--build` to obtain a Rojo project for `rojo serve <printed-project-path>`. Every preparation gets its own directory, so earlier snapshots are preserved. Use `lute Benchmarks/Prepare.luau --help` for all options; `--option=value` is also supported.
 
-```powershell
-.\Benchmarks\Prepare.ps1 -Workload Reset -Case reset-width16 -Build
+Use `--case` with an exact scenario ID from Output to rerun only that scenario:
+
+```sh
+lute Benchmarks/Prepare.luau --workload Reset --case reset-width16 --build
 ```
 
 The workload and case filters must both match. An unmatched filter reports an error rather than producing an empty successful run.
 
-For a quick setup check, use `-Samples 3 -WarmupBatches 1 -MaxIterations 4 -TargetMilliseconds 1`. These small batches are smoke checks, not useful evidence of a small speed improvement.
+For a quick setup check, use `--samples 3 --warmup-batches 1 --max-iterations 4 --target-ms 1`. These small batches are smoke checks, not useful evidence of a small speed improvement.
 
 ## Workloads
 
@@ -103,8 +107,8 @@ The ordinary profiles use 1 and 16 workers. The synchronous profile changes only
 
 The driver resumes its own raw coroutine before switching to the completion branch, so the ordinary replay works with the current library's cancellation behaviour. Priority preemption remains an explicit Cancellation workload. Replay timings include input assignment and manual completion delivery as well as tree ticks. The worker count and six-tick cadence describe a synthetic replay, not a real-time scheduler or a capacity prediction.
 
-```powershell
-.\Benchmarks\Prepare.ps1 -Workload DecisionCycle -Case decision-cycle-ordinary-workers16 -Build
+```sh
+lute Benchmarks/Prepare.luau --workload DecisionCycle --case decision-cycle-ordinary-workers16 --build
 ```
 
 ## Scenario modules and named checks
@@ -157,7 +161,7 @@ A failing batch stops that scenario's measurement. The remaining scenarios conti
 
 Output reports baseline and candidate median microseconds per named operation, followed by the median paired percentage reduction and its p10/p90 spread. Positive reduction means the candidate was faster. For priority-switch cases, one operation includes two ticks. Construction measures node creation, attachment, validation, and tree creation; tree verification and event destruction occur outside the timer.
 
-The full report is stored in `ServerStorage.BehaviourTreeBenchmarkResults.Value`. Copy the Value while the play session is still running, in server view, and save it beside that run's `manifest.json` as `results.json`. With `-PrintJson`, Output also prints the JSON in 4,000-character chunks between `BT_BENCH_JSON_BEGIN` and `BT_BENCH_JSON_END`; join those payload chunks without Output timestamps or prefixes when saving.
+The full report is stored in `ServerStorage.BehaviourTreeBenchmarkResults.Value`. Copy the Value while the play session is still running, in server view, and save it beside that run's `manifest.json` as `results.json`. With `--print-json`, Output also prints the JSON in 4,000-character chunks between `BT_BENCH_JSON_BEGIN` and `BT_BENCH_JSON_END`; join those payload chunks without Output timestamps or prefixes when saving.
 
 The JSON report uses schema version 2. It includes scenario names and IDs, generic workload rationale, successful preflight check results by revision, structured failures (`variant`, `phase`, `batch`, `stage`, `check`, `message`), and overall totals. It also includes every completed scenario's raw baseline/candidate batch duration, execution order, iteration count, per-operation statistics, mechanism probe counts, skipped/failed cases, manifest, and Roblox version. Probe counts come from a separate three-iteration instrumented pass, not the timed samples. Distinct callback thread identities demonstrate thread usage; they are not a full allocation or memory measurement.
 
@@ -175,12 +179,15 @@ The runner uses `os.clock` around non-yielding operation batches. It yields betw
 
 ## Validate the harness
 
-```powershell
+```sh
 lute Benchmarks/Tests/run.luau
+lute Benchmarks/Tests/Preparation.spec.luau
 selene Benchmarks
 stylua --check Benchmarks
 ```
 
 Lute is pinned in the tool manifests. The tests cover statistics, calibration, alternating order, excluding waits, trace mismatches, filters, named checks, failure context, continuing after failures, reporter output, skip handling, and cleanup on failures. Each real scenario also runs as its own source fixture smoke test, so CI identifies individual failures and skips. These use a synthetic clock and test substitutes for GUIDs and BindableEvent lifetime; they do not measure Roblox performance or validate its task scheduler.
+
+Preparation integration tests use a synthetic Git repository under `.benchmarks/`. They check committed bytes, edited/untracked files, hashes, paths with spaces and Unicode, option validation, manifest escaping, failed revisions, and a Rojo build. They leave their ignored fixtures available for inspection.
 
 CI runs these harness tests and lint/format checks. Studio measurements remain an explicit benchmark run, with results retained alongside the implementation under review.
