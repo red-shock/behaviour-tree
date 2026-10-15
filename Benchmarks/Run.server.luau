@@ -44,11 +44,4 @@ result.Name = "BehaviourTreeBenchmarkResults"
 result.Value = HttpService:JSONEncode(report)
 result.Parent = ServerStorage
 print("Full JSON saved in ServerStorage.BehaviourTreeBenchmarkResults.Value (server view, before stopping Play).")
-if manifest.printJson then
-	print("BT_BENCH_JSON_BEGIN")
-	for offset = 1, #result.Value, 4000 do
-		print(string.sub(result.Value, offset, offset + 3999))
-	end
-	print("BT_BENCH_JSON_END")
-end
 assert(summary.failed == 0, "Benchmark scenarios failed; inspect the named checks above and the saved JSON report")

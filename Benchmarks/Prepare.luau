@@ -19,29 +19,17 @@ local definitions = {
 	["--candidate"] = { key = "candidate", default = "WORKTREE" },
 	["--workload"] = { key = "workload", default = "All" },
 	["--case"] = { key = "case", default = "" },
-	["--samples"] = { key = "samples", default = 21, min = 3, max = 101, integer = true },
-	["--warmup-batches"] = { key = "warmupBatches", default = 3, min = 1, max = 20, integer = true },
-	["--max-iterations"] = { key = "maxIterations", default = 1024, min = 1, max = 4096, integer = true },
-	["--target-ms"] = { key = "targetMilliseconds", default = 5, min = 1, max = 50 },
-	["--environment-label"] = { key = "environmentLabel", default = "local Studio" },
-	["--print-json"] = { key = "printJson", default = false, flag = true },
-	["--build"] = { key = "build", default = false, flag = true },
 }
 
 local function help()
 	print([[Usage: lute Benchmarks/Prepare.luau [options]
-  --baseline REF           Baseline Git revision (default HEAD)
+  --baseline REF           Baseline Git revision or WORKTREE (default HEAD)
   --candidate REF          Candidate Git revision or WORKTREE (default WORKTREE)
   --workload NAME          All, Diagnostics, Reset, Construction, Actions, Cancellation, DecisionCycle
   --case ID                Only this exact scenario ID
-  --samples N              Paired samples, 3..101 (default 21)
-  --warmup-batches N       Warmup pairs, 1..20 (default 3)
-  --max-iterations N       Operations per batch, 1..4096 (default 1024)
-  --target-ms N            Target batch milliseconds, 1..50 (default 5)
-  --environment-label TEXT Record the measurement environment
-  --print-json             Print result JSON chunks in Studio
-  --build                  Build the generated Rojo place
   --help, -h               Show this help
+
+Always builds a Studio place. Open the printed path and press Play.
 ]])
 end
 
@@ -63,28 +51,13 @@ local function options()
 		assert(definition, `Unknown option: {name}. Use --help for usage.`)
 		assert(not seen[name], `Duplicate option: {name}`)
 		seen[name] = true
-		if definition.flag then
-			assert(value == nil, `{name} does not take a value`)
-			result[definition.key] = true
-		else
-			if value == nil then
-				index += 1
-				value = process.args[index]
-				assert(value and not string.match(value, "^%-%-"), `{name} requires a value`)
-			end
-			assert(value ~= "", `{name} requires a nonempty value`)
-			if definition.min then
-				local number = tonumber(value)
-				assert(
-					number and number >= definition.min and number <= definition.max,
-					`{name} must be between {definition.min} and {definition.max}`
-				)
-				assert(not definition.integer or number % 1 == 0, `{name} must be an integer`)
-				result[definition.key] = number
-			else
-				result[definition.key] = value
-			end
+		if value == nil then
+			index += 1
+			value = process.args[index]
+			assert(value and not string.match(value, "^%-%-"), `{name} requires a value`)
 		end
+		assert(value ~= "", `{name} requires a nonempty value`)
+		result[definition.key] = value
 		index += 1
 	end
 	assert(workloads[result.workload], `Unknown workload: {result.workload}`)
@@ -216,7 +189,6 @@ local function main()
 		schemaVersion = 2,
 		hashFormat = "sha256-sorted-relative-paths-v1",
 		preparedAt = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-		environmentLabel = config.environmentLabel,
 		baseline = baseline,
 		candidate = candidate,
 		harnessHash = sourceHash(harness),
@@ -224,12 +196,11 @@ local function main()
 		config = {
 			workload = config.workload,
 			case = config.case,
-			samples = config.samples,
-			warmupBatches = config.warmupBatches,
-			maxIterations = config.maxIterations,
-			targetSeconds = config.targetMilliseconds / 1000,
+			samples = 21,
+			warmupBatches = 3,
+			maxIterations = 1024,
+			targetSeconds = 0.005,
 		},
-		printJson = config.printJson,
 	}
 	local manifestJson = json.serialize(manifest, true)
 	write(join(runDirectory, "manifest.json"), manifestJson)
@@ -259,11 +230,9 @@ local function main()
 			},
 		}, true)
 	)
-	if config.build then
-		local place = join(runDirectory, "benchmark.rbxlx")
-		print(trim(command({ "rojo", "build", projectPath, "-o", place })))
-		print(`Open in Studio and press Play: {place}`)
-	end
+	local place = join(runDirectory, "benchmark.rbxlx")
+	print(trim(command({ "rojo", "build", projectPath, "-o", place })))
+	print(`Open in Studio and press Play: {place}`)
 	print(`Manifest: {join(runDirectory, "manifest.json")}`)
 	print(`Rojo project: {projectPath}`)
 	if baseline.sourceHash == candidate.sourceHash then

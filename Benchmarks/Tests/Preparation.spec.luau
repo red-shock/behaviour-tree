@@ -101,14 +101,18 @@ test("help and invalid options do not create snapshots", function()
 	local help = prepare({ "--help" })
 	assert(help.ok and string.find(help.stdout, "--baseline", 1, true), "Missing CLI help")
 	for _, arguments in ipairs({
-		{ "--samples", "2" },
-		{ "--samples", "3.5" },
-		{ "--max-iterations", "0" },
-		{ "--target-ms", "51" },
+		{ "--samples", "21" },
+		{ "--warmup-batches", "3" },
+		{ "--max-iterations", "1024" },
+		{ "--target-ms", "5" },
+		{ "--environment-label", "local Studio" },
+		{ "--print-json" },
+		{ "--build" },
 		{ "--workload", "Missing" },
 		{ "--case" },
-		{ "--build=false" },
-		{ "--samples", "3", "--samples", "5" },
+		{ "--case=" },
+		{ "--baseline", "--candidate", "HEAD" },
+		{ "--candidate", "HEAD", "--candidate", "WORKTREE" },
 		{ "--unknown" },
 	}) do
 		local result = prepare(arguments)
@@ -118,7 +122,7 @@ test("help and invalid options do not create snapshots", function()
 end)
 
 test("committed snapshots preserve exact bytes and build an isolated Rojo place", function()
-	local unchangedManifest, unchangedDirectory = prepared({ "--baseline", "HEAD", "--candidate", "HEAD", "--build" })
+	local unchangedManifest, unchangedDirectory = prepared({ "--baseline", "HEAD", "--candidate", "HEAD" })
 	assert(
 		unchangedManifest.baseline.commit == commit and unchangedManifest.candidate.commit == commit,
 		"Wrong revisions"
@@ -148,7 +152,7 @@ test("committed snapshots preserve exact bytes and build an isolated Rojo place"
 		fs.exists(join(unchangedDirectory, "Harness", "Nested", "Other.luau")),
 		"Harness subdirectories were not copied"
 	)
-	assert(fs.exists(join(unchangedDirectory, "benchmark.rbxlx")), "Rojo place was not built")
+	assert(fs.exists(join(unchangedDirectory, "benchmark.rbxlx")), "Rojo place was not built automatically")
 	assert(unchangedManifest.runnerHash == sha256("print('fixture only')\n"), "Runner hash is not SHA-256")
 	assert(
 		unchangedManifest.schemaVersion == 2 and unchangedManifest.hashFormat == "sha256-sorted-relative-paths-v1",
@@ -192,34 +196,22 @@ test("working-tree snapshots include edits and untracked files without changing 
 	assert(string.gsub(git("rev-parse", "HEAD"), "%s+$", "") == commit, "Preparation changed HEAD")
 end)
 
-test("labels and options round-trip through JSON and the generated Luau module", function()
-	local label = 'Example "quoted" environment \\ path\n]====] ]=====]'
+test("selection options and fixed timing round-trip through the manifest", function()
 	local manifest, directory = prepared({
 		"--candidate=HEAD",
 		"--workload",
 		"DecisionCycle",
 		"--case",
 		"decision-cycle-ordinary-workers16",
-		"--samples",
-		"7",
-		"--warmup-batches",
-		"2",
-		"--max-iterations",
-		"8",
-		"--target-ms",
-		"1.5",
-		"--environment-label",
-		label,
-		"--print-json",
 	})
-	assert(manifest.environmentLabel == label, "Label was interpreted or incorrectly escaped")
-	assert(manifest.printJson and manifest.config.workload == "DecisionCycle", "Flags or workload were lost")
+	assert(manifest.candidate.label == "HEAD", "Candidate option was lost")
+	assert(manifest.config.workload == "DecisionCycle", "Workload filter was lost")
 	assert(manifest.config.case == "decision-cycle-ordinary-workers16", "Case filter was lost")
 	assert(
-		manifest.config.samples == 7 and manifest.config.warmupBatches == 2 and manifest.config.maxIterations == 8,
-		"Integer options changed"
+		manifest.config.samples == 21 and manifest.config.warmupBatches == 3 and manifest.config.maxIterations == 1024,
+		"Fixed measurement settings changed"
 	)
-	assert(manifest.config.targetSeconds == 0.0015, "Target units changed")
+	assert(manifest.config.targetSeconds == 0.005, "Target units changed")
 	local moduleSource = fs.readFileToString(join(directory, "Manifest.luau"))
 	local moduleJson = luau.load(luau.compile(moduleSource), "Manifest", {})()
 	assert(moduleJson == fs.readFileToString(join(directory, "manifest.json")), "Manifest module altered the JSON")
