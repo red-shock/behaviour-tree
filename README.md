@@ -4,6 +4,8 @@ An extensible, configurable behaviour tree module useful for creating complex NP
 
 ## Getting Started
 
+For repeatable performance comparisons, see the [benchmark setup](Benchmarks/README.md). It builds an isolated Studio place containing baseline and candidate snapshots and records paired timings and mechanism counts.
+
 Import BehaviourTree like so,
 
 ```lua
