@@ -51,20 +51,29 @@ function ExecutionNode.new(
 end
 
 function ExecutionNode:_resolveCompleted()
-	self.tree:debugPrint(
-		`{self.name} coroutine is dead, resetting. Success: {self._coroutine.success}, Result: {self._coroutine.result}`,
-		Enums.DebugLevel.VERBOSE
-	)
+	if self.tree.debugLevel >= Enums.DebugLevel.VERBOSE then
+		self.tree:debugPrint(
+			`{self.name} coroutine is dead, resetting. Success: {self._coroutine.success}, Result: {self._coroutine.result}`,
+			Enums.DebugLevel.VERBOSE
+		)
+	end
 	if not self._coroutine.success then
 		self.status = Enums.Status.FAILURE
-		self.tree:debugPrint(`Exiting {self.name} ({self.nodeType}) [RUNNING -> FAILURE]`, Enums.DebugLevel.TRANSITIONS)
+		if self.tree.debugLevel >= Enums.DebugLevel.TRANSITIONS then
+			self.tree:debugPrint(
+				`Exiting {self.name} ({self.nodeType}) [RUNNING -> FAILURE]`,
+				Enums.DebugLevel.TRANSITIONS
+			)
+		end
 	else
 		if self.nodeType == Enums.NodeType.ACTION then
 			self.status = Enums.Status.SUCCESS
-			self.tree:debugPrint(
-				`Exiting {self.name} ({self.nodeType}) [RUNNING -> SUCCESS]`,
-				Enums.DebugLevel.TRANSITIONS
-			)
+			if self.tree.debugLevel >= Enums.DebugLevel.TRANSITIONS then
+				self.tree:debugPrint(
+					`Exiting {self.name} ({self.nodeType}) [RUNNING -> SUCCESS]`,
+					Enums.DebugLevel.TRANSITIONS
+				)
+			end
 			if self.isTerminator then
 				if not self.tree then
 					error("Tree is not set, cannot pause")
@@ -73,10 +82,12 @@ function ExecutionNode:_resolveCompleted()
 			end
 		elseif self.nodeType == Enums.NodeType.CONDITION then
 			self.status = self._coroutine.result and Enums.Status.SUCCESS or Enums.Status.FAILURE
-			self.tree:debugPrint(
-				`Exiting {self.name} ({self.nodeType}) [RUNNING -> {self.status}]`,
-				Enums.DebugLevel.TRANSITIONS
-			)
+			if self.tree.debugLevel >= Enums.DebugLevel.TRANSITIONS then
+				self.tree:debugPrint(
+					`Exiting {self.name} ({self.nodeType}) [RUNNING -> {self.status}]`,
+					Enums.DebugLevel.TRANSITIONS
+				)
+			end
 		end
 	end
 	self._coroutine = nil
@@ -102,7 +113,12 @@ function ExecutionNode:run()
 			return self.status
 		end
 
-		self.tree:debugPrint(`Entering {self.name} ({self.nodeType}) [IDLE -> RUNNING]`, Enums.DebugLevel.TRANSITIONS)
+		if self.tree.debugLevel >= Enums.DebugLevel.TRANSITIONS then
+			self.tree:debugPrint(
+				`Entering {self.name} ({self.nodeType}) [IDLE -> RUNNING]`,
+				Enums.DebugLevel.TRANSITIONS
+			)
+		end
 		self.status = Enums.Status.RUNNING
 	else
 		if coroutine.status(self._coroutine.fn) == "dead" then

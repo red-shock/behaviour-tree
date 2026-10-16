@@ -330,6 +330,8 @@ The output shows each node's name and type, with indentation reflecting the pare
 
 Set `tree.debugLevel` to control how much diagnostic output is printed:
 
+Messages below the selected level are skipped before formatting. You can change the level between ticks.
+
 | Level | Constant      | Output                                                            |
 | ----- | ------------- | ----------------------------------------------------------------- |
 | 0     | `NONE`        | Silent.                                                           |

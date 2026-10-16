@@ -3,7 +3,8 @@
 local fs = require("@std/fs")
 local luau = require("@lute/luau")
 
-return function()
+return function(options)
+	options = options or {}
 	local root = { moduleName = "init" }
 	local cache, events = {}, {}
 	local guid = 0
@@ -19,7 +20,7 @@ return function()
 		},
 		RunService = {
 			IsStudio = function()
-				return false
+				return options.isStudio or false
 			end,
 		},
 	}
@@ -39,7 +40,7 @@ return function()
 		string = string,
 		math = math,
 		coroutine = coroutine,
-		print = print,
+		print = options.print or print,
 		warn = print,
 	}
 	local function loadModule(reference)
