@@ -42,6 +42,9 @@ jobs:
           stylua --check Test
           stylua --check Benchmarks
 
+      - name: Library tests
+        run: lute Test/run.luau
+
       - name: Benchmark harness tests
         run: |
           lute Benchmarks/Tests/run.luau

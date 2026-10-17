@@ -82,7 +82,7 @@ function Tree:run()
 		error("Tree has no root node")
 	end
 
-	if self.root.status ~= Enums.Status.RUNNING and not self.paused then
+	if self.root.status ~= Enums.Status.RUNNING and self.debugLevel >= Enums.DebugLevel.BASIC then
 		self:debugPrint("TICK BEGIN", Enums.DebugLevel.BASIC)
 	end
 	self.root:run()

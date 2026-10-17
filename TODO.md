@@ -38,7 +38,7 @@
 
 - [ ] Remove or implement unused fields (e.g., stale type entries in `ExecutionNode`).
 - [ ] Convert node type validation arrays to set-lookups for O(1) checks.
-- [ ] Avoid debug string construction when debug level is below threshold.
+- [x] Avoid debug string construction when debug level is below threshold.
 
 ## 7) Add testing and CI/CD pipeline
 
