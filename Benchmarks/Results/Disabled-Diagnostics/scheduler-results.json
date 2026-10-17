@@ -1,1 +1,0 @@
-{"robloxVersion":"0.743.0.7431133","candidateSourceHash":"7a46ff3a183c1d7d222052f892662e9d52779e2df73d1ecabad0901ca28a6fe7","cases":[{"passed":true,"condition":false,"waiting":"task.wait"},{"passed":true,"condition":false,"waiting":"signal"},{"passed":true,"condition":true,"waiting":"task.wait"},{"passed":true,"condition":true,"waiting":"signal"}]}
